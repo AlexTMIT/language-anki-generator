@@ -9,7 +9,7 @@ class AnkiClient:
         payload = {"action": action, "version": 6, "params": params}
         r = requests.post(self.url, json=payload, timeout=15).json()
         if r.get("error"):
-            raise RuntimeError(r["error"])
+            print(f"Anki API error: {r['error']}")
         return r["result"]
 
     # public helpers -------------------------------------------------------

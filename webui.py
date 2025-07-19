@@ -54,33 +54,93 @@ PAGE_PICK = """
 img {width:120px;height:120px;object-fit:cover;border:3px solid transparent;cursor:pointer}
 img.sel{border-color:#2196f3;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;}
+.dropzone{border:2px dashed #888;padding:12px;text-align:center;margin-top:8px;color:#666}
 </style>
-<h4>{{ word }} – pick up to 3 images ({{ picked }}/3)</h4>
-<form id=f method=post>
-  <div class=grid>
+
+<h4>{{ word }} ({{ trans }}, {{ gram }}) – pick / drop / paste up to 3 images</h4>
+
+<form id=f method=post enctype=multipart/form-data>
+  <div class=grid id=grid>
   {% for u in urls %}
-    <label><input type=checkbox name=img value="{{u}}" hidden>
+    <label><input type=checkbox name=url value="{{u}}" hidden>
       <img src="{{u}}">
     </label>
   {% endfor %}
   </div>
+
+  <div class="dropzone" id=dz>
+    ⇧ Drag images here or paste (⌘V / Ctrl-V) ⇧
+    <input type=file id=file name=file multiple accept="image/*" hidden>
+  </div>
+
   <button type=submit id=btn disabled>Continue</button>
 </form>
+
 <script>
 const max=3;
+const grid=document.getElementById('grid');
+const btn=document.getElementById('btn');
+const fileInput=document.getElementById('file');
+
+function currentCount(){
+  return document.querySelectorAll('input[name=url]:checked').length + fileInput.files.length;
+}
+
+function toggleBox(box,img){
+  if(!box.checked && currentCount()>=max) return;
+  box.checked=!box.checked;
+  img.classList.toggle('sel',box.checked);
+  btn.disabled=currentCount()===0;
+  if(currentCount()===max) document.getElementById('f').submit();
+}
+
+/* — click on thumbs — */
 document.querySelectorAll('label').forEach(lbl=>{
   const box=lbl.querySelector('input');
   const img=lbl.querySelector('img');
-  lbl.onclick=e=>{
-    if(!box.checked && document.querySelectorAll('input:checked').length>=max) return;
-    box.checked=!box.checked;
-    img.classList.toggle('sel',box.checked);
-    btn.disabled=document.querySelectorAll('input:checked').length===0;
-    if(document.querySelectorAll('input:checked').length===max){
-      document.getElementById('f').submit();
-    }
-  };
+  lbl.onclick=e=>{ toggleBox(box,img); };
 });
+
+/* — drag-drop local files — */
+const dz=document.getElementById('dz');
+dz.ondragover=e=>{e.preventDefault(); dz.style.borderColor='#2196f3';};
+dz.ondragleave=e=>{dz.style.borderColor='#888';};
+dz.ondrop=e=>{
+  e.preventDefault(); dz.style.borderColor='#888';
+  const dt=new DataTransfer();
+  [...fileInput.files].forEach(f=>dt.items.add(f));       // keep existing
+  [...e.dataTransfer.files].slice(0,max-currentCount())
+       .forEach(f=>dt.items.add(f));
+  fileInput.files=dt.files;
+  previewFiles(dt.files);
+};
+
+/* — paste image from clipboard — */
+document.addEventListener('paste',e=>{
+  for (const item of e.clipboardData.items){
+    if(item.type.startsWith('image') && currentCount()<max){
+      const file=item.getAsFile();
+      const dt=new DataTransfer();
+      [...fileInput.files].forEach(f=>dt.items.add(f));
+      dt.items.add(file);
+      fileInput.files=dt.files;
+      previewFiles([file]);
+    }
+  }
+});
+
+/* show tiny preview for dropped/pasted files */
+function previewFiles(files){
+  [...files].forEach(f=>{
+    const url=URL.createObjectURL(f);
+    const img=document.createElement('img');
+    img.src=url;
+    img.style.border='3px solid #2196f3';
+    grid.prepend(img);                // visual feedback
+  });
+  btn.disabled=currentCount()===0;
+  if(currentCount()===max) document.getElementById('f').submit();
+}
 </script>
 """
 
@@ -194,38 +254,50 @@ def picker():
 
     # ---------- handle POST (images selected) ------------
     if request.method == "POST":
-        sel = request.form.getlist("img")
+        sel_urls = request.form.getlist("url")       # from checkboxes
+        uploaded  = request.files.getlist("file")    # drag/drop or paste
+
         card = CardData.from_dict(cards[idx])
         lang = session["lang"]
         deck = session["deck"]
 
-        # audio
+        # ----- audio (unchanged) -----
         fname, blob = get_audio_blob(lang, card.base)
         audio_tag = ""
         if blob:
             media = anki.store_media(fname, blob)
             audio_tag = f"[sound:{media}]"
 
-        # images
+        # ----- images -----
         img_tags = []
-        for u in sel[:3]:
+
+        # 1) URLs (download)
+        for u in sel_urls[:max(0,3-len(img_tags))]:
             ext = Path(urlparse(u).path).suffix or ".jpg"
             fname_img = f"{uuid.uuid4().hex}{ext}"
             raw = _download(u)
             media_name = anki.store_media(fname_img, raw)
             img_tags.append(f'<img src="{media_name}">')
 
+        # 2) Uploaded files
+        for f in uploaded[:max(0,3-len(img_tags))]:
+            raw = f.read()
+            ext = Path(f.filename).suffix or ".jpg"
+            fname_img = f"{uuid.uuid4().hex}{ext}"
+            media_name = anki.store_media(fname_img, raw)
+            img_tags.append(f'<img src="{media_name}">')
+
         fields = card.to_fields(audio=audio_tag, images=img_tags)
         if anki.add_note(deck, MODEL, fields):
-            session["added"] += 1
+            session["added"] += 1          # success
         else:
-            session["dups"]  += 1   # extremely rare now—race condition
+            session["dups"]  += 1          # duplicate at this late stage
 
-        # next card
+        # ── move to next card or finish ─────────────────────────────
         session["idx"] += 1
         if session["idx"] >= len(cards):
             flash(f"Done! ✅ {session['added']} added | ⚠ {session['dups']} duplicates")
-            session.pop("cards")
+            
             return redirect(url_for("index"))
         else:
             return redirect(url_for("picker"))
@@ -239,6 +311,7 @@ def picker():
     return render_template_string(
         PAGE_PICK,
         word=card.base,
+        trans=card.translation,
+        gram=card.grammar,
         urls=CACHE[sid],
-        picked=0,
     )
