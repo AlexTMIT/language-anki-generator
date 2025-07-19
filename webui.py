@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from collections import defaultdict
+import threading
+import uuid
 
 import requests
 from flask import (
@@ -32,6 +34,9 @@ CACHE: dict[str, list[str]] = {}
 THUMB_CACHE: dict[str, list[str]] = {}
 AUDIO_CACHE: dict[str, str] = {}
 EXEC = ThreadPoolExecutor(max_workers=6)   # 6 parallel fetchers
+
+PROGRESS     : dict[str, dict[str, int]] = defaultdict(dict)
+PROGRESS_LOCK = threading.Lock()          # protect shared counter updates
 
 # ───────── HTML templates (inline for brevity) ───────────────────────
 PAGE_FORM = """
@@ -197,6 +202,46 @@ def prefetch(card: dict, lang: str):
         media = anki.store_media(fname, blob)
         AUDIO_CACHE[word] = f"[sound:{media}]"
 
+def save_note_async(sid: str, deck: str, lang: str,
+                    card_dict: dict, sel_urls: list[str],
+                    uploads: list[tuple[str, bytes]]):
+    """Runs in executor: download images, storeMedia, add note."""
+    card      = CardData.from_dict(card_dict)
+    audio_tag = AUDIO_CACHE.get(card.base, "")
+
+    # -------- images (serial is fine inside this worker) -------------
+    img_tags = []
+
+    # a) URLs
+    for u in sel_urls[:3]:
+        ext   = Path(urlparse(u).path).suffix or ".jpg"
+        fname = f"{uuid.uuid4().hex}{ext}"
+        try:
+            raw   = _download(u)
+            media = anki.store_media(fname, raw)
+            img_tags.append(f'<img src="{media}">')
+        except Exception as e:
+            app.logger.warning("DL/store fail for %s: %s", u, e)
+
+    # b) uploaded files
+    for name, raw in uploads[: 3 - len(img_tags)]:
+        ext   = Path(name).suffix or ".jpg"
+        fname = f"{uuid.uuid4().hex}{ext}"
+        media = anki.store_media(fname, raw)
+        img_tags.append(f'<img src="{media}">')
+
+    # -------- create note -------------------------------------------
+    fields  = card.to_fields(audio=audio_tag, images=img_tags)
+    ok      = anki.add_note(deck, MODEL, fields)
+
+    # -------- update counters atomically ----------------------------
+    with PROGRESS_LOCK:
+        if sid in PROGRESS:
+            if ok:
+                PROGRESS[sid]["added"] += 1
+            else:
+                PROGRESS[sid]["dups"]  += 1
+
 def google_thumbs(query: str, k=20) -> list[str]:
     params = {
         "key": GOOGLE_KEY, "cx": GOOGLE_CX, "searchType": "image",
@@ -262,6 +307,12 @@ def batch():
     if not uniques:
         return redirect(url_for("index"))
 
+    sid = uuid.uuid4().hex        # one token per import run
+
+    with PROGRESS_LOCK:
+        PROGRESS[sid] = {"added": 0, "dups": dup_count, "total": len(uniques)}
+
+    session["sid"]   = sid
     session["cards"] = uniques
     session["deck"]  = deck
     session["lang"]  = lang
@@ -285,50 +336,37 @@ def picker():
         sel_urls = request.form.getlist("url")       # from checkboxes
         uploaded  = request.files.getlist("file")    # drag/drop or paste
 
-        card = CardData.from_dict(cards[idx])
-        lang = session["lang"]
-        deck = session["deck"]
+        sid   = session["sid"]
+        lang  = session["lang"]
+        deck  = session["deck"]
 
-        # ----- audio (unchanged) -----
-        audio_tag = AUDIO_CACHE.get(card.base)
-        if audio_tag is None:
-            audio_tag = ""
+        # pull raw bytes out of FileStorage objects up-front
+        uploads = [(f.filename, f.read()) for f in uploaded]
 
-        # ----- images -----
-        img_tags = []
-
-        # 1) URLs (download) – do it in parallel to avoid serial latency
-        need = sel_urls[:max(0, 3 - len(img_tags))]
-        
-        def dl_and_store(u: str) -> str:
-            ext   = Path(urlparse(u).path).suffix or ".jpg"
-            fname = f"{uuid.uuid4().hex}{ext}"
-            raw   = _download(u)                 # remote GET
-            media = anki.store_media(fname, raw) # local POST to AnkiConnect
-            return f'<img src="{media}">'
-
-        for fut in as_completed([EXEC.submit(dl_and_store, u) for u in need]):
-            img_tags.append(fut.result())
-
-        # 2) Uploaded files
-        for f in uploaded[:max(0,3-len(img_tags))]:
-            raw = f.read()
-            ext = Path(f.filename).suffix or ".jpg"
-            fname_img = f"{uuid.uuid4().hex}{ext}"
-            media_name = anki.store_media(fname_img, raw)
-            img_tags.append(f'<img src="{media_name}">')
-
-        fields = card.to_fields(audio=audio_tag, images=img_tags)
-        if anki.add_note(deck, MODEL, fields):
-            session["added"] += 1          # success
-        else:
-            session["dups"]  += 1          # duplicate at this late stage
+        EXEC.submit(
+            save_note_async, sid, deck, lang,
+            cards[idx], sel_urls, uploads
+        )
 
         # ── move to next card or finish ─────────────────────────────
         session["idx"] += 1
         if session["idx"] >= len(cards):
-            flash(f"Done! ✅ {session['added']} added | ⚠ {session['dups']} duplicates")
-            
+            sid = session["sid"]
+            with PROGRESS_LOCK:
+                p = PROGRESS.get(sid, {})
+                added = p.get("added", 0)
+                dups  = p.get("dups",  0)
+                total = p.get("total", len(cards))
+
+            if added + dups < total:
+                flash(f"Cards are still saving in the background… "
+                      f"{added}/{total} done so far. "
+                      "You can safely leave this page.")
+            else:
+                flash(f"Done! ✅ {added} added | ⚠ {dups} duplicates")
+                with PROGRESS_LOCK:
+                    PROGRESS.pop(sid, None)   # clean up
+
             return redirect(url_for("index"))
         else:
             return redirect(url_for("picker"))
