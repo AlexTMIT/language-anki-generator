@@ -51,9 +51,9 @@ PAGE_PICK = """
 <title>Choose images – {{ word }}</title>
 <link rel=stylesheet href=https://cdn.jsdelivr.net/npm/mini.css@3/dist/mini-default.min.css>
 <style>
-img {width:120px;height:120px;object-fit:cover;border:3px solid transparent;cursor:pointer}
+img {width:240px;height:135px;object-fit:cover;border:3px solid transparent;cursor:pointer}
 img.sel{border-color:#2196f3;}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;}
 .dropzone{border:2px dashed #888;padding:12px;text-align:center;margin-top:8px;color:#666}
 </style>
 
