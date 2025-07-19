@@ -1,9 +1,12 @@
+from concurrent import futures
 import json
 import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 import requests
 from flask import (
@@ -26,6 +29,9 @@ app.secret_key = "l2-secret-for-session"  # any random string
 
 # keep fetched thumbs in RAM for speed (sid → [urls])
 CACHE: dict[str, list[str]] = {}
+THUMB_CACHE: dict[str, list[str]] = {}
+AUDIO_CACHE: dict[str, str] = {}
+EXEC = ThreadPoolExecutor(max_workers=6)   # 6 parallel fetchers
 
 # ───────── HTML templates (inline for brevity) ───────────────────────
 PAGE_FORM = """
@@ -179,6 +185,17 @@ class CardData:
             "Image 3":     images[2] if len(images) > 2 else "",
         }
 
+def prefetch(card: dict, lang: str):
+    """Background job: fetch audio & thumbs, store in caches."""
+    word = card["base"]
+    # thumbs
+    THUMB_CACHE[word] = google_thumbs(card["keyword"])
+    # audio
+    fname, blob = get_audio_blob(lang, word)
+    AUDIO_CACHE[word] = ""
+    if blob:
+        media = anki.store_media(fname, blob)
+        AUDIO_CACHE[word] = f"[sound:{media}]"
 
 def google_thumbs(query: str, k=20) -> list[str]:
     params = {
@@ -217,15 +234,26 @@ def batch():
     DUPE_DECK = "dupe-check"
     anki.ensure_deck(DUPE_DECK)
 
-    uniques, dup_count = [], 0
+    uniques, dup_count, futures = [], 0, []
+
     for c in cards:
-        test_id = anki.add_minimal_note(DUPE_DECK, MODEL, c["base"])
-        if test_id is None:          # duplicate detected
+        word = c["base"]
+        test_id = anki.add_minimal_note(DUPE_DECK, MODEL, word)
+        if test_id is None:
             dup_count += 1
             continue
-        # fresh → delete placeholder and keep entry
         anki.delete_note(test_id)
         uniques.append(c)
+
+        # ---------- spawn background prefetch (one per card) ----------
+        futures.append(EXEC.submit(prefetch, c, lang))
+
+    # optional: wait so errors surface now
+    for f in as_completed(futures):
+        try:
+            f.result()               # propagate exceptions, if any
+        except Exception as e:
+            app.logger.warning("Prefetch failed: %s", e)
 
     if dup_count:
         flash(f"⚠ Skipped {dup_count} duplicate(s) right away.")
@@ -262,22 +290,25 @@ def picker():
         deck = session["deck"]
 
         # ----- audio (unchanged) -----
-        fname, blob = get_audio_blob(lang, card.base)
-        audio_tag = ""
-        if blob:
-            media = anki.store_media(fname, blob)
-            audio_tag = f"[sound:{media}]"
+        audio_tag = AUDIO_CACHE.get(card.base)
+        if audio_tag is None:
+            audio_tag = ""
 
         # ----- images -----
         img_tags = []
 
-        # 1) URLs (download)
-        for u in sel_urls[:max(0,3-len(img_tags))]:
-            ext = Path(urlparse(u).path).suffix or ".jpg"
-            fname_img = f"{uuid.uuid4().hex}{ext}"
-            raw = _download(u)
-            media_name = anki.store_media(fname_img, raw)
-            img_tags.append(f'<img src="{media_name}">')
+        # 1) URLs (download) – do it in parallel to avoid serial latency
+        need = sel_urls[:max(0, 3 - len(img_tags))]
+        
+        def dl_and_store(u: str) -> str:
+            ext   = Path(urlparse(u).path).suffix or ".jpg"
+            fname = f"{uuid.uuid4().hex}{ext}"
+            raw   = _download(u)                 # remote GET
+            media = anki.store_media(fname, raw) # local POST to AnkiConnect
+            return f'<img src="{media}">'
+
+        for fut in as_completed([EXEC.submit(dl_and_store, u) for u in need]):
+            img_tags.append(fut.result())
 
         # 2) Uploaded files
         for f in uploaded[:max(0,3-len(img_tags))]:
@@ -304,14 +335,12 @@ def picker():
 
     # ---------- GET: show picker -------------------------
     card = CardData.from_dict(cards[idx])
-    sid = f"{idx}-{card.keyword}"
-    if sid not in CACHE:
-        CACHE[sid] = google_thumbs(card.keyword)
 
     return render_template_string(
         PAGE_PICK,
         word=card.base,
         trans=card.translation,
         gram=card.grammar,
-        urls=CACHE[sid],
+        urls=THUMB_CACHE.get(card.base)
+             or google_thumbs(card.keyword),
     )
