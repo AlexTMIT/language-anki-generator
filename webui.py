@@ -2,56 +2,47 @@ import json
 from dataclasses import dataclass
 
 from flask import (
-    Flask,
-    flash,
-    redirect,
-    render_template_string,
-    request,
-    url_for,
+    Flask, flash, redirect, render_template_string,
+    request, url_for,
 )
 
 from anki_client import AnkiClient
+from audio_forvo import get_audio_blob
 
 MODEL = "*L2: 2025 Revamp"
-anki = AnkiClient()
-app = Flask(__name__)
-app.secret_key = "flash-messages-only"
+anki  = AnkiClient()
+app   = Flask(__name__)
+app.secret_key = "flash"
 
-# ───────────────────────── HTML ──────────────────────────
-TEMPLATE = """
+HTML = """
 <!doctype html>
-<title>Flashcard Maker – L2 Batch</title>
+<title>L2 Flashcard Import</title>
 <link rel="stylesheet"
-  href="https://cdn.jsdelivr.net/npm/mini.css@3.0.1/dist/mini-default.min.css">
-<h3>Batch import JSON → {{ model }}</h3>
+ href="https://cdn.jsdelivr.net/npm/mini.css@3.0.1/dist/mini-default.min.css">
 
-{% with msgs = get_flashed_messages() %}
-  {% if msgs %}
-    <div class="row">
-      <div class="col-sm-12">{{ msgs[0]|safe }}</div>
-    </div>
-  {% endif %}
-{% endwith %}
+<h3>Batch import to “{{ model }}”</h3>
+{% for m in get_flashed_messages() %}
+  <div>{{ m|safe }}</div>
+{% endfor %}
 
 <form method="post" action="{{ url_for('batch') }}">
   <label>Deck
-    <select name="deck">
-      {% for d in decks %}
-        <option value="{{ d }}">{{ d }}</option>
-      {% endfor %}
+    <select name="deck">{% for d in decks %}<option>{{ d }}</option>{% endfor %}</select>
+  </label>
+  <label>Language code
+    <select name="lang">
+      <option value="bl">bl (Belarusian)</option>
+      <option value="dk">dk (Danish)</option>
     </select>
   </label>
-
-  <label>Paste JSON array
-    <textarea name="blob" rows="12" required
-      placeholder='[{"base": "выцерці", ...}, …]'></textarea>
+  <label>JSON array
+    <textarea name="blob" rows="12" required placeholder='[...]'></textarea>
   </label>
-
   <button type="submit">Import</button>
 </form>
 """
 
-# ───────────────────  dataclass for mapping ──────────────
+# ---------- dataclass & mapping ------------------------------------------
 @dataclass
 class CardData:
     base: str
@@ -63,57 +54,61 @@ class CardData:
     @classmethod
     def from_json(cls, d: dict):
         return cls(
-            base=d.get("base", "").strip(),
-            grammar=d.get("grammar", "").strip(),
-            translation=d.get("translation", "").strip(),
-            example=d.get("example", "").strip(),
-            example_translation=d.get("example-translation", "").strip(),
+            base                = d.get("base", "").strip(),
+            grammar             = d.get("grammar", "").strip(),
+            translation         = d.get("translation", "").strip(),
+            example             = d.get("example", "").strip(),
+            example_translation = d.get("example-translation", "").strip(),
         )
 
-    def to_fields(self) -> dict:
-        """Return dict matching the *L2: 2025 Revamp field order."""
+    def to_fields(self, audio_tag: str = "") -> dict:
         return {
-            "Word": self.base,
-            "Grammar": self.grammar,
-            "Meaning": self.translation,
-            "Sentence": self.example,
+            "Word":        self.base,
+            "Grammar":     self.grammar,
+            "Meaning":     self.translation,
+            "Sentence":    self.example,
             "Translation": self.example_translation,
-            # Image 1/2/3, Audio left blank for now
+            "Audio":       audio_tag,
         }
 
-
-# ────────────────────  routes ────────────────────────────
+# ---------- routes --------------------------------------------------------
 @app.route("/", methods=["GET"])
 def index():
-    return render_template_string(TEMPLATE, decks=anki.deck_names(), model=MODEL)
-
+    return render_template_string(HTML, decks=anki.deck_names(), model=MODEL)
 
 @app.route("/batch", methods=["POST"])
 def batch():
     deck = request.form["deck"].strip()
-    blob = request.form["blob"].strip()
+    lang = request.form["lang"].strip()
+    raw  = request.form["blob"].strip()
 
-    # 1. parse JSON --------------------------------------------------------
     try:
-        raw = json.loads(blob)
-        assert isinstance(raw, list)
+        items = json.loads(raw)
+        assert isinstance(items, list)
     except Exception as e:
         flash(f"<mark>JSON error:</mark> {e}")
         return redirect(url_for("index"))
 
-    cards = [CardData.from_json(x) for x in raw]
+    added = skipped = 0
+    for entry in items:
+        card = CardData.from_json(entry)
 
-    # 2. push to Anki ------------------------------------------------------
-    added, skipped = 0, 0
-    try:
-        for c in cards:
-            ok = anki.add_note(deck, MODEL, c.to_fields())
+        # -------- audio ----------
+        fname, blob = get_audio_blob(lang, card.base)
+        audio_tag = ""
+        if blob:
+            media_name = anki.store_media(fname, blob)
+            audio_tag  = f"[sound:{media_name}]"
+
+        fields = card.to_fields(audio_tag)
+
+        try:
+            ok = anki.add_note(deck, MODEL, fields)
             added += 1 if ok else 0
             skipped += 0 if ok else 1
-    except Exception as e:
-        flash(f"<mark>Anki error:</mark> {e}")
-        return redirect(url_for("index"))
+        except Exception as e:
+            flash(f"Anki error: {e}")
+            break
 
-    # 3. summary -----------------------------------------------------------
     flash(f"✅ {added} added &nbsp;|&nbsp; ⚠ {skipped} duplicates")
     return redirect(url_for("index"))
