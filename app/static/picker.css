@@ -1,37 +1,51 @@
-@import url("main.css");
+/* ---- Picker layout overrides for Masonry ---- */
 
-/* thumbs card ---------------------------------------------------- */
 .card-picker {
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 18px;
-}
-
-.card-picker h4 { margin: 0 0 6px 0; }
-
-/* responsive grid ------------------------------------------------ */
-.grid {
-  column-count: 3;               /* number of columns */
-  column-gap: 16px;
   max-width: 1000px;
   margin: 0 auto;
 }
 
+.card-picker h4 {
+  margin: 0 0 6px 0;
+  text-align: center;
+}
+
+/* ----- Masonry Container ----- */
+.grid {
+  margin-top: 1rem;
+}
+
+/* ----- Each item (label) ----- */
+.grid label {
+  display: block;
+  margin-bottom: 12px;
+  break-inside: avoid;
+  width: 270px;
+}
+
+/* ----- Image styling ----- */
 .grid img {
   width: 100%;
   height: auto;
-  object-fit: cover;
   border: 3px solid transparent;
   border-radius: var(--radius);
   cursor: pointer;
   transition: transform .15s, border-color .15s;
 }
 
-.grid img:hover { transform: scale(1.03); }
+.grid img:hover {
+  transform: scale(1.03);
+}
 
-img.sel { border-color: var(--primary); }
+img.sel {
+  border-color: var(--primary);
+}
 
+/* Dropzone remains unchanged */
 .dropzone {
   border: 2px dashed var(--border);
   border-radius: var(--radius);
@@ -40,4 +54,7 @@ img.sel { border-color: var(--primary); }
   color: var(--muted);
 }
 
-button#btn { align-self: flex-end; }
+/* Button alignment */
+button#btn {
+  align-self: center;
+}

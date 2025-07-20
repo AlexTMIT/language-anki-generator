@@ -16,14 +16,12 @@ body {
   background: var(--bg);
 }
 
-/* Make the main container wider and centered */
 .container {
-  margin: 3rem auto; /* centers horizontally */
+  margin: 3rem auto; 
   padding: 2rem;
   max-width: 1000px;
 }
 
-/* Optional: give the form/card a bit more styling */
 .card {
   max-width: 600px;
   background: white;
@@ -33,14 +31,11 @@ body {
   margin: 0 auto;      
 }
 
-/* Ensure the form controls take full width inside the card */
 .card form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
-/* Make button centered */
 .card button {
   align-self: center;
   padding: 0.75rem 2rem;
