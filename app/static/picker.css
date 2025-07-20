@@ -1,0 +1,26 @@
+/* thumbnail presentation */
+img {
+  width: 240px;
+  height: 135px;
+  object-fit: cover;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+img.sel { border-color: #2196f3; }
+
+/* responsive grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  justify-content: center;
+  gap: 6px;
+}
+
+/* drag-drop area */
+.dropzone {
+  border: 2px dashed #888;
+  padding: 12px;
+  text-align: center;
+  margin-top: 8px;
+  color: #666;
+}

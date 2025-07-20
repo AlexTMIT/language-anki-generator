@@ -1,4 +1,6 @@
-Flask>=3.1
+Flask>=3.0
 requests>=2.32
+pydantic>=2.8
+pydantic-settings>=2.3
 pydub>=0.25
-tqdm>=4.66
+Pillow>=10.0

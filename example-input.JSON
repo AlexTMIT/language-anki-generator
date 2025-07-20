@@ -1,0 +1,26 @@
+[
+  {
+    "base": "зламацца",
+    "grammar": "Verb",
+    "translation": "to break down",
+    "example": "Старая лаўка *зламалася* пад яго вагой.",
+    "example-translation": "The old bench *broke down* under his weight.",
+    "keyword": "broken object"
+  },
+  {
+    "base": "вясёлы",
+    "grammar": "Adj.",
+    "translation": "cheerful",
+    "example": "Яна такая *вясёлая*, што ўсім паляпшае настрой.",
+    "example-translation": "She is so *cheerful* that she lifts everyone's mood.",
+    "keyword": "cheerful person"
+  },
+  {
+    "base": "смешны",
+    "grammar": "Adj.",
+    "translation": "funny",
+    "example": "Гэта быў сапраўды *смешны* жарт.",
+    "example-translation": "That was a really *funny* joke.",
+    "keyword": "funny joke"
+  }
+]
