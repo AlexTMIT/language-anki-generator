@@ -2,19 +2,29 @@
 <title>Choose images – {{ word }}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mini.css@3/dist/mini-default.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='picker.css') }}">
-<h4>{{ word }} ({{ trans }}, {{ gram }}) – pick / drop / paste up to 3 images</h4>
-<form id="f" method="post" enctype="multipart/form-data">
-  <div class="grid" id="grid">
-    {% for u in urls %}
-      <label><input type="checkbox" name="url" value="{{ u }}" hidden>
-        <img src="{{ u }}">
-      </label>
-    {% endfor %}
+
+<div class="container">
+  <div class="card card-picker">
+    <h4>{{ word }} ({{ trans }}, {{ gram }}) – choose up to 3 images</h4>
+
+    <form id="f" method="post" enctype="multipart/form-data">
+      <div class="grid" id="grid">
+        {% for u in urls %}
+          <label>
+            <input type="checkbox" name="url" value="{{ u }}" hidden>
+            <img src="{{ u }}">
+          </label>
+        {% endfor %}
+      </div>
+
+      <div class="dropzone" id="dz">
+        ⇧ Drag images here or paste (⌘V / Ctrl-V) ⇧
+        <input type="file" id="file" name="file" multiple accept="image/*" hidden>
+      </div>
+
+      <button class="primary" type="submit" id="btn" disabled>Continue</button>
+    </form>
   </div>
-  <div class="dropzone" id="dz">
-    ⇧ Drag images here or paste (⌘V / Ctrl-V) ⇧
-    <input type="file" id="file" name="file" multiple accept="image/*" hidden>
-  </div>
-  <button type="submit" id="btn" disabled>Continue</button>
-</form>
+</div>
+
 <script src="{{ url_for('static', filename='picker.js') }}"></script>

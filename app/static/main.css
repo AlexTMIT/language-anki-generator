@@ -1,0 +1,87 @@
+/* ---- Palette ---------------------------------------------------- */
+:root {
+  --primary: #7046d6;
+  --primary-hover: #5e3bb2;
+  --bg: #fafbfc;
+  --card-bg: #ffffff;
+  --border: #e1e4e8;
+  --muted: #5a6270;
+  --radius: 8px;
+  --shadow: 0 2px 6px rgba(0,0,0,.08);
+}
+
+/* ---- Layout helpers -------------------------------------------- */
+body {
+  padding-top: 0.5rem;
+  background: var(--bg);
+}
+
+/* Make the main container wider and centered */
+.container {
+  margin: 3rem auto; /* centers horizontally */
+  padding: 2rem;
+  max-width: 1000px;
+}
+
+/* Optional: give the form/card a bit more styling */
+.card {
+  max-width: 600px;
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  margin: 0 auto;      
+}
+
+/* Ensure the form controls take full width inside the card */
+.card form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Make button centered */
+.card button {
+  align-self: center;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+}
+
+h3, h4 { margin-top: 0; color: #202531; }
+
+/* ---- Form elements --------------------------------------------- */
+form label { display: block; margin-bottom: 18px; color: var(--muted); }
+
+form input[type="text"],
+form textarea,
+form select {
+  width: 100%;
+  font-size: 15px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  transition: border 0.2s;
+}
+
+form input:focus,
+form textarea:focus,
+form select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+button.primary {
+  background: var(--primary);
+  border: 0;
+  border-radius: var(--radius);
+  color: #fff;
+  padding: 10px 24px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button.primary:hover { background: var(--primary-hover); }
+
+button:disabled { opacity: 0.55; cursor: not-allowed; }

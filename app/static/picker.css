@@ -1,26 +1,43 @@
-/* thumbnail presentation */
-img {
-  width: 240px;
-  height: 135px;
+@import url("main.css");
+
+/* thumbs card ---------------------------------------------------- */
+.card-picker {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.card-picker h4 { margin: 0 0 6px 0; }
+
+/* responsive grid ------------------------------------------------ */
+.grid {
+  column-count: 3;               /* number of columns */
+  column-gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.grid img {
+  width: 100%;
+  height: auto;
   object-fit: cover;
   border: 3px solid transparent;
+  border-radius: var(--radius);
   cursor: pointer;
-}
-img.sel { border-color: #2196f3; }
-
-/* responsive grid */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  justify-content: center;
-  gap: 6px;
+  transition: transform .15s, border-color .15s;
 }
 
-/* drag-drop area */
+.grid img:hover { transform: scale(1.03); }
+
+img.sel { border-color: var(--primary); }
+
 .dropzone {
-  border: 2px dashed #888;
-  padding: 12px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
   text-align: center;
-  margin-top: 8px;
-  color: #666;
+  color: var(--muted);
 }
+
+button#btn { align-self: flex-end; }

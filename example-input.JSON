@@ -24,3 +24,14 @@
     "keyword": "funny joke"
   }
 ]
+
+[
+  {
+    "base": "зламацца",
+    "grammar": "Verb",
+    "translation": "to break down",
+    "example": "Старая лаўка *зламалася* пад яго вагой.",
+    "example-translation": "The old bench *broke down* under his weight.",
+    "keyword": "broken object"
+  }
+]
