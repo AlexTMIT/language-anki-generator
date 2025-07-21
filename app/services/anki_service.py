@@ -1,15 +1,26 @@
 from __future__ import annotations
 import base64
-from typing import Any
-import requests
 from hashlib import md5
+from typing import Any
 
+import requests
+
+
+# ────────────────────────────────────────────────────────────────
+# Real AnkiConnect client (unchanged network behaviour)
+# ────────────────────────────────────────────────────────────────
 class AnkiClient:
-    def __init__(self, endpoint: str = "http://localhost:8765", *, timeout: int = 15):
-        self.url     = endpoint
+    def __init__(
+        self,
+        endpoint: str = "http://localhost:8765",
+        *,
+        timeout: int = 15,
+    ):
+        self.url = endpoint
         self.timeout = timeout
-        self.session = requests.Session() # keep connection open
+        self.session = requests.Session()  # keep TCP connection open
 
+    # ---------- core RPC -----------------------------------------
     def _rpc(self, action: str, **params: Any) -> Any:
         payload = {"action": action, "version": 6, "params": params}
         res = self.session.post(self.url, json=payload, timeout=self.timeout).json()
@@ -17,11 +28,13 @@ class AnkiClient:
             raise RuntimeError(res["error"])
         return res["result"]
 
-    # public helpers -------------------------------------------------
+    # ---------- helpers ------------------------------------------
     def deck_names(self) -> list[str]:
         return self._rpc("deckNames")
 
-    def add_note(self, deck: str, model: str, fields: dict, *, allow_dup: bool=False) -> bool:
+    def add_note(
+        self, deck: str, model: str, fields: dict, *, allow_dup: bool = False
+    ) -> bool:
         note = {
             "deckName": deck,
             "modelName": model,
@@ -29,33 +42,31 @@ class AnkiClient:
             "options": {"allowDuplicate": allow_dup},
             "tags": [],
         }
-        print(f"Adding note to deck '{deck}' with model '{model}' and fields: {fields}")
         return self._rpc("addNote", note=note) is not None
 
     def store_media(self, fname: str, raw: bytes) -> str:
+        # skip upload if identical hash already stored
         digest = md5(raw).hexdigest()
         try:
             hit = self._rpc("retrieveMediaFileByHash", hash=digest)
             if hit:
-                return hit   # already stored, reuse
+                return hit
         except Exception:
-            print("new shidd did nottin")
-            pass  # method may not exist; ignore
+            pass  # older AnkiConnect: just continue to upload
 
         b64 = base64.b64encode(raw).decode()
         return self._rpc("storeMediaFile", filename=fname, data=b64)
-    
+
     def ensure_deck(self, name: str) -> None:
-        """Create *name* if it doesn't already exist."""
         if name not in self.deck_names():
             self._rpc("createDeck", deck=name)
 
-    # --- helper for duplicate testing --------------------------------
+    # duplicate-check helper
     def add_minimal_note(self, deck: str, model: str, word: str) -> int | None:
         fields = {f: "" for f in (
             "Word", "Grammar", "Meaning",
-            "Sentence", "Translation",
-            "Audio", "Image 1", "Image 2", "Image 3")}
+            "Sentence", "Translation", "Audio",
+            "Image 1", "Image 2", "Image 3")}
         fields["Word"] = word
         try:
             return self._rpc("addNote", note={
@@ -76,5 +87,77 @@ class AnkiClient:
     def delete_deck(self, name: str) -> None:
         self._rpc("deleteDecks", decks=[name], cardsToo=True)
 
+    # batch
+    def multi(self, actions):
+        print("[ANKI] multi call:", [a["action"] for a in actions])
+        out = self._rpc("multi", actions=actions)
+        print("[ANKI] multi result:", out)
+        return out
+
+# ────────────────────────────────────────────────────────────────
+# Dummy client for L2_TEST_MODE=1 (no Anki required)
+# ────────────────────────────────────────────────────────────────
+class DummyAnkiClient:
+    """In-memory stub: mimics enough of AnkiConnect for TEST mode."""
+
+    def __init__(self):
+        self.decks = {"1TEST_DECK"}
+        self.media: dict[str, bytes] = {}
+        self.notes: list[dict] = []
+
+    # ---- deck helpers -------------------------------------------
+    def deck_names(self) -> list[str]:
+        return list(self.decks)
+
+    def ensure_deck(self, name: str) -> None:
+        self.decks.add(name)
+
+    # ---- media ---------------------------------------------------
+    def store_media(self, fname: str, raw: bytes) -> str:
+        self.media[fname] = raw
+        return fname
+
+    # ---- note helpers -------------------------------------------
+    def add_note(self, *args, **kwargs) -> bool:
+        """
+        Accept either:
+          • add_note(deck, model, fields)
+          • add_note(note= {...})   (keyword style used by multi())
+        """
+
+        print("[DUMMY] add_note", "kwargs" if kwargs else "positional")
+
+        if kwargs:  # keyword style
+            note = kwargs.get("note") or kwargs
+            self.notes.append(note)
+        else:       # positional style
+            deck, model, fields = args[:3]
+            self.notes.append(
+                {"deckName": deck, "modelName": model, "fields": fields}
+            )
+        return True
+
+    def add_minimal_note(self, *_, **__) -> int | None:
+        # Always pretend word is unique in TEST mode
+        return 1
+
+    def delete_note(self, note_id: int) -> None:
+        pass
+
+    def delete_deck(self, name: str) -> None:
+        self.decks.discard(name)
+
+    # ---- batch ---------------------------------------------------
     def multi(self, actions: list[dict]) -> list:
-        return self._rpc("multi", actions=actions)
+        results = []
+        for act in actions:
+            if act["action"] == "storeMediaFile":
+                p = act["params"]
+                self.store_media(p["filename"], b"dummy")
+                results.append(p["filename"])
+            elif act["action"] == "addNote":
+                self.add_note(note=act["params"]["note"])
+                results.append(1)
+            else:
+                results.append(None)
+        return results

@@ -1,0 +1,18 @@
+[
+  {
+    "base": "test-word-1",
+    "grammar": "Noun",
+    "translation": "demo one",
+    "example": "This is *test-word-1* in a sentence.",
+    "example-translation": "Dit er *test-word-1* i en sætning.",
+    "keyword": "demo image one"
+  },
+  {
+    "base": "test-word-2",
+    "grammar": "Verb",
+    "translation": "demo two",
+    "example": "We should *test-word-2* it now.",
+    "example-translation": "Vi bør *test-word-2* det nu.",
+    "keyword": "demo image two"
+  }
+]

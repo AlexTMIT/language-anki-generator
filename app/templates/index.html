@@ -25,9 +25,14 @@
        </select>
      </label>
      <label>JSON
-       <textarea name="blob" rows="10" required placeholder='[...]'></textarea>
+       <textarea name="blob" rows="10" required placeholder='[...]'>{{ sample_json|e }}</textarea>
      </label>
-     <button class="primary" type="submit">Start import</button>
+     <div style="display:flex; gap:12px; justify-content:flex-end;">
++        <button class="ghost"   type="submit" name="action" value="skip">Skip</button>
++        <button class="primary" type="submit" name="action" value="keep" id="btn" disabled>
++          Continue
++        </button>
++      </div>
    </form>
  </div>
 </div>
