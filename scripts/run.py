@@ -4,7 +4,6 @@ import webbrowser
 from pathlib import Path
 from threading import Timer
 
-# Ensure project root is on sys.path when executing via `python scripts/run.py`
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 

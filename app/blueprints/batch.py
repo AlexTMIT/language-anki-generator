@@ -40,7 +40,7 @@ def start():
         futures.append(
             current_app.executor.submit(
                 prefetch,
-                current_app.anki,           # pass deps
+                current_app.anki,
                 current_app.caches,
                 c,
                 lang,
@@ -48,7 +48,7 @@ def start():
         )
 
     try:
-        futures[0].result(timeout=5)   # 1st thumbnail & audio in ~1-2 s
+        futures[0].result(timeout=5)
     except Exception as err:
         current_app.logger.warning("Prefetch failed: %s", err)
 
