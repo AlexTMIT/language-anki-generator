@@ -30,13 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           const reader = new FileReader();
           reader.onloadend = () => {
-            audioB64.value = reader.result;          // data:audio/webm;base64,…
+            audioB64.value = reader.result;
           };
           reader.readAsDataURL(blob);
 
           mediaRec = null;
-          recBtn.textContent = '🎤 Re-record';       // visual feedback
-          recBtn.classList.add('success');          // optional styling
+          recBtn.textContent = '🎤 Re-record';
+          recBtn.classList.add('success');
         };
         mediaRec.start();
         recBtn.textContent = '⏹️ Stop';

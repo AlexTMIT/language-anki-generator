@@ -6,7 +6,6 @@ import uuid
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
-
 from typing import List, Tuple
 
 import requests
@@ -14,161 +13,159 @@ from PIL import Image, UnidentifiedImageError
 
 from ..models.card import CardData
 
-# ────────────────────────────── configuration ────────────────────────────────
-MAX_W            = 640  # px – resize cap
-TEST_MODE        = os.getenv("L2_TEST_MODE") == "1"
-ASSET_DIR        = Path(__file__).parent.parent / "test_assets"
-AUDIO_MIME_EXT   = {
-    "audio/webm": ".webm",
-    "audio/ogg":  ".ogg",
-    "audio/mpeg": ".mp3",
-}
+# Configuration
+MAX_W = 640  # px max width for images
+TEST_MODE = os.getenv("L2_TEST_MODE") == "1"
+ASSET_DIR = Path(__file__).parent.parent / "test_assets"
+AUDIO_MIME_EXT = {"audio/webm": ".webm", "audio/ogg": ".ogg", "audio/mpeg": ".mp3"}
 
-# ──────────────────────────────── helpers ────────────────────────────────────
-def _download(url: str) -> bytes:
+
+def _download_content(url: str) -> bytes:
+    """Fetch raw bytes, with test-mode override for stubs."""
     if TEST_MODE and url.startswith("/static/test/thumbs/"):
         return (ASSET_DIR / "thumbs" / Path(url).name).read_bytes()
     return requests.get(url, timeout=20).content
 
-def _compress(data: bytes) -> bytes:
+
+def _compress_image(raw: bytes) -> bytes:
+    """Resize + JPEG recompress if too large; fallback to original on error."""
     try:
-        img = Image.open(BytesIO(data))
+        img = Image.open(BytesIO(raw))
         img.thumbnail((MAX_W, MAX_W * 2), Image.LANCZOS)
         buf = BytesIO()
         img.save(buf, format="JPEG", quality=80)
         return buf.getvalue()
     except Exception:
-        return data
+        return raw
 
-def _is_valid_image(data: bytes) -> bool:
-    if not data:
+
+def _is_valid_image(raw: bytes) -> bool:
+    """Check that bytes decode to a non-empty image."""
+    if not raw:
         return False
     try:
-        with Image.open(BytesIO(data)) as im:
-            im.load()
-            return im.width > 0 and im.height > 0
+        with Image.open(BytesIO(raw)) as img:
+            img.load()
+            return img.width > 0 and img.height > 0
     except (UnidentifiedImageError, OSError, ValueError):
         return False
 
-def _prep_image(data: bytes) -> bytes | None:
-    if not data:
-        return None
-    comp = _compress(data)
-    return comp if _is_valid_image(comp) else None
 
-def _stage_image(
-    actions: List[dict],
-    img_tags: List[str],
-    data: bytes,
-    ext: str = ".jpg",
-) -> None:
+def _stage_image(actions: List[dict], img_tags: List[str], raw: bytes, ext: str = ".jpg") -> None:
+    """Add storeMedia and img tag actions for a valid image."""
     fname = f"{uuid.uuid4().hex}{ext}"
+    b64 = base64.b64encode(raw).decode()
     actions.append({
         "action": "storeMediaFile",
-        "params": {"filename": fname, "data": base64.b64encode(data).decode()},
+        "params": {"filename": fname, "data": b64},
     })
     img_tags.append(f'<img src="{fname}">')
 
-# ─────────────────────────────── main routine ────────────────────────────────
-def save_note(
-    *,
-    deck: str,
-    anki_model: str,
-    anki,
-    caches: dict,
-    card_dict: dict,
-    sel_urls: List[str],
-    uploads: List[Tuple[str, bytes]],
-    rec_b64: str = "",
-) -> None:
-    card = CardData.from_dict(card_dict)
-    cached_audio_tag = caches["audio"].get(card.base, "")
-    user_audio_tag   = ""
-    actions:   List[dict] = []
-    img_tags:  List[str]  = []
 
-    print(f"[SAVE] Start  deck={deck} word={card.base}")
+def _process_images(
+    sel_urls: List[str], uploads: List[Tuple[str, bytes]],
+    actions: List[dict]
+) -> List[str]:
+    """
+    Process up to 3 images from URLs then uploads.
+    Returns list of HTML img tags and appends storeMedia actions.
+    """
+    img_tags: List[str] = []
+    # Helper to stage
+    def try_url(url: str) -> None:
+        raw = _download_content(url)
+        comp = _compress_image(raw)
+        if _is_valid_image(comp) and len(img_tags) < 3:
+            ext = Path(urlparse(url).path).suffix or ".jpg"
+            _stage_image(actions, img_tags, comp, ext)
 
-    # ─── 1) user recording (prepended) ───────────────────────────
-    if rec_b64:
-        try:
-            header, b64data = rec_b64.split(",", 1)
-            mime = header.split(";")[0].split(":")[1]
-            ext  = AUDIO_MIME_EXT.get(mime, ".webm")
-            aud_bytes = base64.b64decode(b64data)
-            if aud_bytes:
-                # store the recorded clip first
-                fname = f"{uuid.uuid4().hex}{ext}"
-                actions.append({
-                    "action": "storeMediaFile",
-                    "params": {"filename": fname, "data": b64data},
-                })
-                user_audio_tag = f"[sound:{fname}]"
-            else:
-                print("[SAVE]  recorded audio empty, ignored")
-        except Exception as err:
-            print(f"[SAVE]  bad audio_b64 payload: {err}")
-
-    # ─── 2) remote URL images ─────────────────────────────────────
+    # Remote URLs first
     for url in sel_urls:
         if len(img_tags) >= 3:
             break
         try:
-            raw = _download(url)
-        except Exception as err:
-            print(f"[SAVE]  download failed for {url}: {err}")
+            try_url(url)
+        except Exception:
             continue
 
-        data = _prep_image(raw)
-        if data is None:
-            print(f"[SAVE]  invalid image from {url} (skipped).")
-            continue
-
-        ext = Path(urlparse(url).path).suffix or ".jpg"
-        _stage_image(actions, img_tags, data, ext)
-
-    # ─── 3) uploaded images ───────────────────────────────────────
-    for name, raw in uploads:
+    # Then user uploads
+    for name, data in uploads:
         if len(img_tags) >= 3:
             break
-        data = _prep_image(raw)
-        if data is None:
-            print(f"[SAVE]  invalid upload {name!r} (skipped).")
-            continue
+        comp = _compress_image(data)
+        if _is_valid_image(comp):
+            ext = Path(name).suffix or ".jpg"
+            _stage_image(actions, img_tags, comp, ext)
 
-        ext = Path(name).suffix or ".jpg"
-        _stage_image(actions, img_tags, data, ext)
+    return img_tags
 
-    print(f"[SAVE]  valid_images={len(img_tags)}, audio_cached={bool(cached_audio_tag)}")
 
-    # ─── 4) abort if no images ──────────────────────────────────
+def _stage_user_audio(rec_b64: str, actions: List[dict]) -> str:
+    """
+    Decode user audio and stage storeMedia action if present.
+    Returns an [sound:] tag or empty string.
+    """
+    if not rec_b64.startswith("data:audio"):
+        return ""
+    try:
+        header, b64data = rec_b64.split(",", 1)
+        raw = base64.b64decode(b64data)
+        if raw:
+            mime = header.split(";")[0].split(":")[1]
+            ext = AUDIO_MIME_EXT.get(mime, ".webm")
+            fname = f"{uuid.uuid4().hex}{ext}"
+            actions.append({
+                "action": "storeMediaFile",
+                "params": {"filename": fname, "data": b64data},
+            })
+            return f"[sound:{fname}]"
+    except Exception:
+        pass
+    return ""
+
+
+def save_note(
+    *, deck: str, anki_model: str, anki, caches: dict,
+    card_dict: dict, sel_urls: List[str],
+    uploads: List[Tuple[str, bytes]], rec_b64: str = "",
+) -> None:
+    """
+    Add a single Anki note with up to 3 images and optional user audio.
+    """
+    card = CardData.from_dict(card_dict)
+    actions: List[dict] = []
+
+    print(f"[SAVE] Start deck={deck} word={card.base}")
+
+    # Audio: user first, then cached
+    user_tag = _stage_user_audio(rec_b64, actions)
+    cached_tag = caches.get("audio", {}).get(card.base, "")
+    full_audio = user_tag + cached_tag
+
+    # Images
+    img_tags = _process_images(sel_urls, uploads, actions)
     if not img_tags:
-        print(f"[SAVE]  no valid images for “{card.base}”; note NOT added.")
+        print(f"[SAVE] no valid images for '{card.base}', skipping.")
         return
 
-    # ─── 5) addNote ─────────────────────────────────────────────
-    full_audio_tag = user_audio_tag + cached_audio_tag
-    fields = card.to_fields(audio=full_audio_tag, images=img_tags)
-
+    # Build note
+    fields = card.to_fields(audio=full_audio, images=img_tags)
     actions.append({
         "action": "addNote",
         "params": {
             "note": {
-                "deckName":  deck,
-                "modelName": anki_model,
-                "fields":    fields,
-                "options":   {"allowDuplicate": False},
-                "tags":      [],
+                "deckName":   deck,
+                "modelName":  anki_model,
+                "fields":     fields,
+                "options":    {"allowDuplicate": False},
+                "tags":       [],
             }
-        },
+        }
     })
 
+    # Send to Anki
     try:
-        print(f"[SAVE]  -> sending {len(actions)} actions to Anki")
         res = anki.multi(actions)
-        if res[-1] is None:
-            print(f"[SAVE]  duplicate note for “{card.base}” skipped")
-        else:
-            print(f"[SAVE]  result={res[-1]}")
+        print(f"[SAVE] result={res[-1]}")
     except Exception as err:
-        print(f"[SAVE]  failed saving note “{card.base}”: {err}")
+        print(f"[SAVE] failed saving note: {err}")
