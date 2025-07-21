@@ -1,5 +1,4 @@
 """Typed, env‑driven configuration using **pydantic‑settings** (compatible with pydantic v2)."""
-from pathlib import Path
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

@@ -26,6 +26,7 @@ def step():
             sel_urls = request.form.getlist("url")
             uploads  = [(f.filename, f.read())
                         for f in request.files.getlist("file")]
+            rec_b64    = request.form.get("audio_b64", "")
 
             save_note(
                 deck=session["deck"],
@@ -35,6 +36,7 @@ def step():
                 card_dict=cards[idx],
                 sel_urls=sel_urls,
                 uploads=uploads,
+                rec_b64=rec_b64,
             )
             flash(f"Added “{cards[idx]['base']}”.")
         else:

@@ -19,7 +19,6 @@ def create_app() -> Flask:
         ANKI_MODEL=settings.ANKI_MODEL,
     )
 
-    # choose real vs. dummy Anki client
     app.anki = (
         DummyAnkiClient() if TEST and OFFLINE
         else AnkiClient(settings.ANKICONNECT_ENDPOINT)
@@ -29,7 +28,7 @@ def create_app() -> Flask:
         app.anki.delete_deck(TEST_DECK)
         app.anki.ensure_deck(TEST_DECK)
 
-    app.caches = caches  # type: ignore[attr-defined]
+    app.caches = caches
 
     register_blueprints(app)
     return app

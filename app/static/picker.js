@@ -1,13 +1,59 @@
+/* picker.js – images + mic recording (no playback) ---------------- */
+
 document.addEventListener('DOMContentLoaded', () => {
   const max       = 3;
   const grid      = document.getElementById('grid');
   const btn       = document.getElementById('btn');
   const fileInput = document.getElementById('file');
   const dz        = document.getElementById('dz');
+  const recBtn    = document.getElementById('recBtn');
+  const audioB64  = document.getElementById('audio_b64');
 
-  /* ---------- helpers -------------------------------------------- */
+  let mediaRec = null;
+  let chunks   = [];
+
+  /* —————— recording logic —————— */
+  recBtn.addEventListener('click', async () => {
+    if (!mediaRec) {
+      // start
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRec = new MediaRecorder(stream);
+        chunks   = [];
+        mediaRec.ondataavailable = e => chunks.push(e.data);
+        mediaRec.onstop = () => {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          if (chunks.length === 0) {
+            recBtn.textContent = '🎤 Record';
+            mediaRec = null;
+            return;
+          }
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            audioB64.value = reader.result;          // data:audio/webm;base64,…
+          };
+          reader.readAsDataURL(blob);
+
+          mediaRec = null;
+          recBtn.textContent = '🎤 Re-record';       // visual feedback
+          recBtn.classList.add('success');          // optional styling
+        };
+        mediaRec.start();
+        recBtn.textContent = '⏹️ Stop';
+        recBtn.classList.remove('success');
+      } catch (err) {
+        alert('Could not access microphone.');
+        console.error(err);
+      }
+    } else {
+      // stop
+      mediaRec.stop();
+    }
+  });
+
+  /* —————— image picker logic —————— */
   const currentCount = () =>
-    document.querySelectorAll('input[name=url]:checked').length;   // only picks
+    document.querySelectorAll('input[name=url]:checked').length;
 
   const updateBtn = () => {
     btn.disabled = currentCount() === 0;
@@ -21,76 +67,51 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBtn();
   };
 
-  /* ---------- click on remote thumbs ----------------------------- */
   grid.querySelectorAll('label').forEach(lbl => {
     const box = lbl.querySelector('input');
     const img = lbl.querySelector('img');
     lbl.addEventListener('click', () => toggleBox(box, img));
   });
 
-  /* ---------- preview local files -------------------------------- */
   const previewFiles = (files) => {
     [...files].forEach(f => {
       if (currentCount() >= max) return;
-
-      const url   = URL.createObjectURL(f);
-
+      const url = URL.createObjectURL(f);
       const label = document.createElement('label');
-
       const input = document.createElement('input');
-      input.type  = 'checkbox';
-      input.name  = 'url';
-      input.hidden = true;
-
-      const img   = document.createElement('img');
-      img.src     = url;
-
-      label.appendChild(input);
-      label.appendChild(img);
+      input.type  = 'checkbox'; input.name = 'url'; input.hidden = true;
+      const img   = document.createElement('img'); img.src = url;
+      label.append(input, img);
       grid.prepend(label);
-
       toggleBox(input, img);
     });
     updateBtn();
   };
 
-  /* ---------- add files from any source -------------------------- */
   const addNewFiles = (fileList) => {
     const roomLeft = max - currentCount();
     if (roomLeft <= 0) return;
-
     const newFiles = [...fileList].slice(0, roomLeft);
-
     const dt = new DataTransfer();
     [...fileInput.files].forEach(f => dt.items.add(f));
     newFiles.forEach(f => dt.items.add(f));
     fileInput.files = dt.files;
-
     previewFiles(newFiles);
   };
 
-  /* ---------- dedicated drop-zone (keeps blue highlight) --------- */
-  dz.addEventListener('dragover', e => {
-    e.preventDefault();
-    dz.style.borderColor = '#2196f3';
-  });
-  dz.addEventListener('dragleave', () => {
-    dz.style.borderColor = '#888';
-  });
+  // drop zone
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = '#2196f3'; });
+  dz.addEventListener('dragleave',   () => dz.style.borderColor = '#888');
   dz.addEventListener('drop', e => {
-    e.preventDefault();
-    dz.style.borderColor = '#888';
+    e.preventDefault(); dz.style.borderColor = '#888';
     addNewFiles(e.dataTransfer.files);
   });
 
-  /* ---------- page-level drag-and-drop fallback ------------------ */
+  // page-level drop
   document.addEventListener('dragover', e => e.preventDefault());
-  document.addEventListener('drop',     e => {
-    e.preventDefault();                            // stop browser file-open
-    addNewFiles(e.dataTransfer.files);             // ✓ works outside dz too
-  });
+  document.addEventListener('drop',     e => { e.preventDefault(); addNewFiles(e.dataTransfer.files); });
 
-  /* ---------- paste from clipboard ------------------------------ */
+  // paste
   document.addEventListener('paste', e => {
     const imgs = [...e.clipboardData.items]
                    .filter(it => it.type.startsWith('image'))
@@ -98,5 +119,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (imgs.length) addNewFiles(imgs);
   });
 
-  updateBtn();   // initialise
+  updateBtn();  // initialize
 });

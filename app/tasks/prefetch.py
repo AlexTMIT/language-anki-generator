@@ -2,7 +2,7 @@
 Prefetch thumbs + audio for ONE card.
 If L2_TEST_MODE=1 is set, serve local stub assets.
 """
-import os, random, pathlib, base64
+import os, random, pathlib
 from ..services.audio_service import get_audio_blob
 from ..services.image_service import google_thumbs
 
@@ -25,7 +25,7 @@ def prefetch(anki, caches: dict, card_dict: dict, lang: str) -> None:
 def load_live_mode_content(anki, caches, card_dict, lang, word):
     caches["thumb"][word] = google_thumbs(card_dict["keyword"])
     fname, blob = get_audio_blob(lang, word)
-    caches["audio"][word] = ""
+    caches.setdefault("audio_blob", {})[word] = blob or b""
     if blob:
         media = anki.store_media(fname, blob)
         caches["audio"][word] = f"[sound:{media}]"
@@ -38,6 +38,8 @@ def load_test_mode_content(anki, caches, word):
         ]
 
     audio_file = ASSET_DIR / "audio" / "dummy.mp3"
-    media = anki.store_media("dummy.mp3", audio_file.read_bytes())
+    dummy = audio_file.read_bytes()
+    caches.setdefault("audio_blob", {})[word] = dummy
+    media = anki.store_media("dummy.mp3", dummy)
     caches["audio"][word] = f"[sound:{media}]"
     return

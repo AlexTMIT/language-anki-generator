@@ -23,6 +23,10 @@
       </div>
 
       <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <div class="recorder">
+          <button type="button" id="recBtn" class="contrast">🎤 Record</button>
+          <input type="hidden" name="audio_b64" id="audio_b64">
+        </div>
         <button class="ghost"   type="submit" name="action" value="skip">Skip</button>
         <button class="primary" type="submit" name="action" value="keep" id="btn" disabled>
           Continue

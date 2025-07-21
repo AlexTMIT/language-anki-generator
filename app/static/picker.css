@@ -50,3 +50,10 @@ img.sel         { border-color: var(--primary); }
   color: var(--muted);
 }
 button#btn { align-self: center; }
+
+.recorder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
