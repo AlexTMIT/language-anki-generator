@@ -1,8 +1,10 @@
-from flask import Blueprint, current_app, redirect, render_template, request, session, url_for, flash
+from __future__ import annotations
 
-from ..extensions import progress, progress_lock
-from ..tasks.save_note import save_note_async
-from ..services.image_service import google_thumbs
+from flask import Blueprint, current_app, redirect, render_template, request, \
+                  session, url_for, flash
+
+from ..tasks.prefetch import prefetch
+from ..tasks.save_note import save_note
 from ..models.card import CardData
 
 bp = Blueprint("picker", __name__, url_prefix="/picker")
@@ -13,45 +15,48 @@ def step():
     if "cards" not in session:
         return redirect(url_for("index.index"))
 
-    idx = session["idx"]
+    idx  = session["idx"]
     cards = session["cards"]
 
+    # ───── POST: user picked images ────────────────────────────────
     if request.method == "POST":
-        sel_urls = request.form.getlist("url")
-        uploads = [(f.filename, f.read()) for f in request.files.getlist("file")]
+        action   = request.form.get("action", "keep")
 
-        current_app.executor.submit(
-            save_note_async,
-            session["sid"],
-            session["deck"],
-            current_app.config["ANKI_MODEL"],
-            current_app.anki,
-            current_app.caches,
-            cards[idx],
-            sel_urls,
-            uploads,
-        )
+        if action == "keep":
+            sel_urls = request.form.getlist("url")
+            uploads  = [(f.filename, f.read())
+                        for f in request.files.getlist("file")]
 
+            save_note(
+                deck=session["deck"],
+                anki_model=current_app.config["ANKI_MODEL"],
+                anki=current_app.anki,
+                caches=current_app.caches,
+                card_dict=cards[idx],
+                sel_urls=sel_urls,
+                uploads=uploads,
+            )
+            flash(f"Added “{cards[idx]['base']}”.")
+        else:
+            flash(f"Skipped “{cards[idx]['base']}”.")
+
+        # advance to next card
         session["idx"] += 1
         if session["idx"] >= len(cards):
-            with progress_lock:
-                p = progress.get(session["sid"], {})
-                added = p.get("added", 0)
-                dups = p.get("dups", 0)
-                total = p.get("total", len(cards))
-
-            if added + dups < total:
-                flash(f"Cards are still saving in the background… {added}/{total} done so far. You can safely leave this page.")
-            else:
-                flash(f"Done! ✅ {added} added | ⚠ {dups} duplicates")
-                with progress_lock:
-                    progress.pop(session["sid"], None)
+            flash("Done! ✅ All cards processed.")
             return redirect(url_for("index.index"))
+
+        # Prefetch next card (synchronous, no threads)
+        next_card = cards[session["idx"]]
+        prefetch(current_app.anki, current_app.caches,
+                 next_card, session["lang"])
 
         return redirect(url_for("picker.step"))
 
+    # ───── GET: show picker for current card ───────────────────────
     card = CardData.from_dict(cards[idx])
-    urls = current_app.caches["thumb"].get(card.base) or google_thumbs(card.keyword)
+    urls = current_app.caches["thumb"].get(card.base, [])
+
     return render_template(
         "picker.html",
         word=card.base,
