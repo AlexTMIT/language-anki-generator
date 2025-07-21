@@ -38,6 +38,7 @@ def step():
             )
             flash(f"Added “{cards[idx]['base']}”.")
         else:
+            print(f"Skipping card {idx} with base {cards[idx]['base']}")
             flash(f"Skipped “{cards[idx]['base']}”.")
 
         # advance to next card
