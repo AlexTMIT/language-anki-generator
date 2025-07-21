@@ -1,45 +1,77 @@
 from __future__ import annotations
 
 import base64
+import os
 import uuid
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
 
+from typing import List, Tuple
+
 import requests
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from ..models.card import CardData
 
-import os, pathlib
+# ────────────────────────────── configuration ────────────────────────────────
+MAX_W            = 640                                # px – resize cap
+TEST_MODE        = os.getenv("L2_TEST_MODE") == "1"
+ASSET_DIR        = Path(__file__).parent.parent / "test_assets"
 
-TEST_MODE = os.getenv("L2_TEST_MODE") == "1"
-ASSET_DIR = pathlib.Path(__file__).parent.parent / "test_assets"
-
-MAX_W = 640  # px
-
-
-# ───────────────── helpers ────────────────────────────────────────
+# ──────────────────────────────── helpers ────────────────────────────────────
 def _download(url: str) -> bytes:
+    """Return raw bytes from a URL (test fixtures honoured)."""
     if TEST_MODE and url.startswith("/static/test/thumbs/"):
-        fname = pathlib.Path(url).name
-        return (ASSET_DIR / "thumbs" / fname).read_bytes()
+        return (ASSET_DIR / "thumbs" / Path(url).name).read_bytes()
     return requests.get(url, timeout=20).content
 
 
-def _compress(raw: bytes) -> bytes:
-    """Resize + recompress large images to ≤640 px wide."""
+def _compress(data: bytes) -> bytes:
+    """Resize + recompress JPEG ≤ MAX_W.  Fallback to original bytes."""
     try:
-        img = Image.open(BytesIO(raw))
+        img = Image.open(BytesIO(data))
         img.thumbnail((MAX_W, MAX_W * 2), Image.LANCZOS)
         buf = BytesIO()
         img.save(buf, format="JPEG", quality=80)
         return buf.getvalue()
     except Exception:
-        return raw
+        return data
 
 
-# ───────────────── main routine ────────────────────────────────────
+def _is_valid_image(data: bytes) -> bool:
+    """Basic sanity check – readable, non-zero size."""
+    if not data:
+        return False
+    try:
+        with Image.open(BytesIO(data)) as im:
+            im.load()
+            w, h = im.size
+            return w > 0 and h > 0
+    except (UnidentifiedImageError, OSError, ValueError):
+        return False
+
+
+def _prep_image(data: bytes) -> bytes | None:
+    """Compress then validate.  Return usable bytes or None."""
+    if not data:
+        return None
+    comp = _compress(data)
+    return comp if _is_valid_image(comp) else None
+
+
+def _stage_image(
+    actions: List[dict], img_tags: List[str], data: bytes, ext: str = ".jpg"
+) -> None:
+    """Push image bytes into Anki `actions` and HTML `img_tags`."""
+    fname = f"{uuid.uuid4().hex}{ext}"
+    actions.append({
+        "action": "storeMediaFile",
+        "params": {"filename": fname, "data": base64.b64encode(data).decode()},
+    })
+    img_tags.append(f'<img src="{fname}">')
+
+# ─────────────────────────────── main routine ────────────────────────────────
 def save_note(
     *,
     deck: str,
@@ -47,54 +79,68 @@ def save_note(
     anki,
     caches: dict,
     card_dict: dict,
-    sel_urls: list[str],
-    uploads: list[tuple[str, bytes]],
+    sel_urls: List[str],
+    uploads: List[Tuple[str, bytes]],
 ) -> None:
-    """Download/attach images, add note.  Synchronous, one card."""
-    card = CardData.from_dict(card_dict)
+    """
+    Download / attach up to three valid images (URLs first, then uploads)
+    and create an Anki note.  If *no* valid images remain, the note is skipped.
+    """
+    card      = CardData.from_dict(card_dict)
     audio_tag = caches["audio"].get(card.base, "")
 
     print(f"[SAVE] Start  deck={deck} word={card.base}")
 
-    img_tags: list[str] = []
-    actions: list[dict] = []
+    img_tags: List[str] = []
+    actions:  List[dict] = []
 
-    # a) remote URLs -------------------------------------------------
-    for u in sel_urls[:3]:
-        ext   = Path(urlparse(u).path).suffix or ".jpg"
-        fname = f"{uuid.uuid4().hex}{ext}"
+    # ─── a) remote URLs ────────────────────────────────────────────
+    for url in sel_urls:
+        if len(img_tags) >= 3:
+            break
         try:
-            raw = _compress(_download(u))
+            raw = _download(url)
         except Exception as err:
-            print(f"Download failed for {u}: {err}")
+            print(f"[SAVE]  download failed for {url}: {err}")
             continue
-        b64 = base64.b64encode(raw).decode()
-        actions.append({"action": "storeMediaFile",
-                        "params": {"filename": fname, "data": b64}})
-        img_tags.append(f'<img src="{fname}">')
-    print(f"[SAVE]  images={len(img_tags)} audio_tag={bool(audio_tag)}")
 
-    # b) uploads -----------------------------------------------------
-    for name, raw in uploads[: 3 - len(img_tags)]:
-        ext   = Path(name).suffix or ".jpg"
-        fname = f"{uuid.uuid4().hex}{ext}"
-        raw   = _compress(raw)
-        b64   = base64.b64encode(raw).decode()
-        actions.append({"action": "storeMediaFile",
-                        "params": {"filename": fname, "data": b64}})
-        img_tags.append(f'<img src="{fname}">')
+        data = _prep_image(raw)
+        if data is None:
+            print(f"[SAVE]  invalid image from {url} (skipped).")
+            continue
 
-    # c) add note ----------------------------------------------------
+        _stage_image(actions, img_tags, data, Path(urlparse(url).path).suffix or ".jpg")
+
+    # ─── b) uploads ────────────────────────────────────────────────
+    for name, raw in uploads:
+        if len(img_tags) >= 3:
+            break
+
+        data = _prep_image(raw)
+        if data is None:
+            print(f"[SAVE]  invalid upload {name!r} (skipped).")
+            continue
+
+        _stage_image(actions, img_tags, data, Path(name).suffix or ".jpg")
+
+    print(f"[SAVE]  valid_images={len(img_tags)} audio_tag={bool(audio_tag)}")
+
+    # ─── c) guard – need at least one image ────────────────────────
+    if not img_tags:
+        print(f"[SAVE]  no valid images for “{card.base}”; note NOT added.")
+        return
+
+    # ─── d) add note ───────────────────────────────────────────────
     fields = card.to_fields(audio=audio_tag, images=img_tags)
     actions.append({
         "action": "addNote",
         "params": {
             "note": {
-                "deckName": deck,
-                "modelName": anki_model,
-                "fields": fields,
-                "options": {"allowDuplicate": False},
-                "tags": [],
+                "deckName":   deck,
+                "modelName":  anki_model,
+                "fields":     fields,
+                "options":    {"allowDuplicate": False},
+                "tags":       [],
             }
         },
     })
