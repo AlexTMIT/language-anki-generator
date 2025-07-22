@@ -14,13 +14,18 @@ ASSET_DIR = pathlib.Path(__file__).parent.parent / "test_assets"
 def prefetch(anki, caches: dict, card_dict: dict, lang: str) -> None:
     word = card_dict["base"]
 
-    print(f"[BATCH] TEST_MODE={TEST_MODE} OFFLINE={OFFLINE}")
-    if TEST_MODE:
-        print("[PREFETCH] Using local stub assets")
-        return load_test_mode_content(anki, caches, word)
-    else:
-        print(f"[PREFETCH] Thumbs={len(caches['thumb'][word])}")
-        return load_live_mode_content(anki, caches, card_dict, lang, word)
+    caches.setdefault("thumb", {})
+    thumbs = google_thumbs(card_dict["keyword"])
+    caches["thumb"][word] = thumbs
+
+    print(f"[PREFETCH] Thumbs={len(thumbs)} for “{word}”")
+
+    # audio
+    fname, blob = get_audio_blob(lang, word)
+    caches.setdefault("audio_blob", {})[word] = blob or b""
+    if blob:
+        media = anki.store_media(fname, blob)
+        caches.setdefault("audio", {})[word] = f"[sound:{media}]"
 
 def load_live_mode_content(anki, caches, card_dict, lang, word):
     caches["thumb"][word] = google_thumbs(card_dict["keyword"])

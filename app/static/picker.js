@@ -1,5 +1,3 @@
-/* picker.js – images + mic recording (no playback) ---------------- */
-
 document.addEventListener('DOMContentLoaded', () => {
   const max       = 3;
   const grid      = document.getElementById('grid');

@@ -1,9 +1,8 @@
 from __future__ import annotations
-
 import json, os
 from flask import Blueprint, request, redirect, url_for, flash, session, current_app
-
 from ..tasks.prefetch import prefetch
+from ..services.openai_svc import sanitise, make_json
 
 bp = Blueprint("batch", __name__, url_prefix="/batch")
 
@@ -15,9 +14,20 @@ OFFLINE    = os.getenv("L2_OFFLINE") == "1"     # DummyAnkiClient
 
 @bp.post("/")
 def start() -> str:
-    """Parse JSON list → dedupe → prefetch first card → push session."""
-    items = parse_json()
-    print(f"[BATCH] Received {len(items)} items")
+    raw = request.form["blob"]
+
+    words = get_sanitised(raw)
+    if not words:
+        return redirect(url_for("index.index"))
+    
+    uniq_words = get_unique_words(words)
+
+    items = get_json(uniq_words)
+    if not items:
+        return redirect(url_for("index.index"))
+    print(items)
+
+    print(f"[BATCH] Card-maker returned {len(items)} objects")
 
     lang = request.form["lang"]
     anki = current_app.anki
@@ -34,6 +44,28 @@ def start() -> str:
     session.update(cards=uniques, deck=deck, lang=lang, idx=0)
 
     return redirect(url_for("picker.step"))
+
+def get_sanitised(raw) -> list[str]:
+    try:
+        return sanitise(raw)
+    except Exception as err:
+        flash(f"OpenAI sanitiser error: {err}")
+        return []
+    
+def get_unique_words(words: list[str]) -> list[str]:
+    seen, uniq_words = set(), []
+    for w in words:
+        if w not in seen:
+            seen.add(w); uniq_words.append(w)
+    print(f"[BATCH] Sanitiser → {len(uniq_words)} unique words")
+    return uniq_words
+
+def get_json(uniq_words: list[str]) -> list[dict]:
+    try:
+        return make_json(uniq_words)
+    except Exception as err:
+        flash(f"OpenAI card-maker error: {err}")
+        return []
 
 def parse_json():
     try:
