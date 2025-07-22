@@ -8,18 +8,14 @@ from openai import OpenAI
 #  Configuration & load instruction prompts (once at import time)
 # ────────────────────────────────────────────────────────────────
 
-# instantiate a dedicated client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# base paths
-HERE    = pathlib.Path(__file__).resolve().parent           # …/app/services
-PROJECT = HERE.parent.parent                                # …/language-anki-generator
+HERE    = pathlib.Path(__file__).resolve().parent
+PROJECT = HERE.parent.parent
 
-# load system prompts
 SANITISE_INSTRUCTIONS = (PROJECT / "instructions" / "sanitise.txt").read_text()
 JSON_INSTRUCTIONS     = (PROJECT / "instructions" / "json_card.txt").read_text()
 
-# which models & temps to use
 SANITISER_MODEL   = "gpt-4o"
 SANITISER_TEMP    = 0.25
 CARDMAKER_MODEL   = "gpt-3.5-turbo"
@@ -31,10 +27,6 @@ CARDMAKER_TEMP    = 0.10
 # ────────────────────────────────────────────────────────────────
 
 def sanitise(raw: str) -> list[str]:
-    """
-    Split & clean the user’s raw list into semicolon-delimited tokens.
-    Prints input/output lengths, token count, and elapsed time.
-    """
     print(f"[SANITISER] Input length: {len(raw)} chars")
     t0 = time.time()
 
@@ -55,10 +47,6 @@ def sanitise(raw: str) -> list[str]:
 
 
 def make_json(words: list[str]) -> list[dict]:
-    """
-    Turn a list of head-words into your JSON card array.
-    Prints prompt length, response length, object count, and elapsed time.
-    """
     prompt = ", ".join(words)
     print(f"[CARDMAKER] Prompt: {len(words)} words, {len(prompt)} chars")
     t0 = time.time()
