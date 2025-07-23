@@ -10,7 +10,8 @@
        <div style="margin-bottom:20px;">{{ messages[0]|safe }}</div>
      {% endif %}
    {% endwith %}
-   <form method="post" action="{{ url_for('batch.start') }}">
+   <form method="post" action="{{ url_for('batch.start') }}"
+      data-ajax data-msg="Creating cards…">
      <label>Deck
        <select name="deck">
          {% for d in decks %}
@@ -31,3 +32,6 @@
    </form>
  </div>
 </div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="{{ url_for('static', filename='l2_ui.js') }}"></script>

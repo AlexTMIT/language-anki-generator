@@ -17,9 +17,9 @@ SANITISE_INSTRUCTIONS = (PROJECT / "instructions" / "sanitise.txt").read_text()
 JSON_INSTRUCTIONS     = (PROJECT / "instructions" / "json_card.txt").read_text()
 
 SANITISER_MODEL   = "gpt-4o"
-SANITISER_TEMP    = 0.25
+SANITISER_TEMP    = 0.3
 CARDMAKER_MODEL   = "gpt-3.5-turbo"
-CARDMAKER_TEMP    = 0.10
+CARDMAKER_TEMP    = 0.3
 
 
 # ────────────────────────────────────────────────────────────────
@@ -27,6 +27,7 @@ CARDMAKER_TEMP    = 0.10
 # ────────────────────────────────────────────────────────────────
 
 def sanitise(raw: str) -> list[str]:
+    print(f"[SANITISER] Input: {raw}")
     print(f"[SANITISER] Input length: {len(raw)} chars")
     t0 = time.time()
 
@@ -42,13 +43,14 @@ def sanitise(raw: str) -> list[str]:
     elapsed = time.time() - t0
     text    = resp.choices[0].message.content.strip()
     toks    = [tok.strip() for tok in text.split(";") if tok.strip()]
+    print(f"[SANITISER] Response: {text}")
     print(f"[SANITISER] Output length: {len(text)} chars, {len(toks)} tokens, took {elapsed:.2f}s")
     return toks
 
 
 def make_json(words: list[str]) -> list[dict]:
     prompt = ", ".join(words)
-    print(f"[CARDMAKER] Prompt: {len(words)} words, {len(prompt)} chars")
+    print(f"[CARDMAKER] Prompt: {words}, {len(prompt)} chars")
     t0 = time.time()
 
     resp = client.chat.completions.create(
@@ -62,7 +64,7 @@ def make_json(words: list[str]) -> list[dict]:
 
     elapsed  = time.time() - t0
     json_str = resp.choices[0].message.content.strip()
-    print(f"[CARDMAKER] Response: {len(json_str)} chars, took {elapsed:.2f}s")
+    print(f"[CARDMAKER] Response: {json_str}, took {elapsed:.2f}s")
 
     try:
         items = json.loads(json_str)

@@ -1,4 +1,6 @@
 Flask>=3.0
+Flask-SocketIO>=5.3
+eventlet>=0.35
 requests>=2.32
 pydantic>=2.8
 pydantic-settings>=2.3

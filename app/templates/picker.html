@@ -7,7 +7,8 @@
   <div class="card card-picker">
     <h4>{{ word }} ({{ trans }}, {{ gram }}) – choose up to 3 images</h4>
 
-    <form id="f" method="post" enctype="multipart/form-data">
+    <form id="f" method="post" enctype="multipart/form-data"
+      data-ajax data-msg="Saving note…">
       <div class="grid" id="grid">
         {% for u in urls %}
           <label>
@@ -36,4 +37,5 @@
   </div>
 </div>
 
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script><script src="{{ url_for('static', filename='l2_ui.js') }}"></script>
 <script src="{{ url_for('static', filename='picker.js') }}"></script>

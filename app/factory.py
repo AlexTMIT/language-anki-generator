@@ -2,14 +2,14 @@ import os
 from flask import Flask
 
 from .config import settings
-from .extensions import caches
+from .extensions import caches, socketio
 from .services.anki_service import AnkiClient, DummyAnkiClient
 from .blueprints import register_blueprints
 
 TEST    = os.getenv("L2_TEST_MODE") == "1"
 OFFLINE = os.getenv("L2_OFFLINE") == "1"
-
 TEST_DECK = "1TEST_DECK"
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -19,16 +19,21 @@ def create_app() -> Flask:
         ANKI_MODEL=settings.ANKI_MODEL,
     )
 
+    # ---------------- Anki client -----------------
     app.anki = (
         DummyAnkiClient() if TEST and OFFLINE
         else AnkiClient(settings.ANKICONNECT_ENDPOINT)
     )
-
     if TEST and not OFFLINE:
         app.anki.delete_deck(TEST_DECK)
         app.anki.ensure_deck(TEST_DECK)
 
+    # ---------------- shared state ----------------
     app.caches = caches
 
+    # ---------------- blueprints ------------------
     register_blueprints(app)
+
+    # attach Socket.IO
+    socketio.init_app(app)
     return app

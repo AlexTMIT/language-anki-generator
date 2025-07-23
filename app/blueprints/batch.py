@@ -1,8 +1,9 @@
 from __future__ import annotations
 import json, os
-from flask import Blueprint, request, redirect, url_for, flash, session, current_app
+from flask import Blueprint, request, redirect, url_for, flash, session, current_app, jsonify
 from ..tasks.prefetch import prefetch
 from ..services.openai_svc import sanitise, make_json
+from app.extensions import socketio
 
 bp = Blueprint("batch", __name__, url_prefix="/batch")
 
@@ -11,6 +12,8 @@ TEST_DECK  = "1TEST_DECK"
 TEST_MODE  = os.getenv("L2_TEST_MODE") == "1"   # local media
 OFFLINE    = os.getenv("L2_OFFLINE") == "1"     # DummyAnkiClient
 
+def _push(msg: str) -> None:
+    socketio.emit("progress", msg)
 
 @bp.post("/")
 def start() -> str:
@@ -37,15 +40,15 @@ def start() -> str:
     else:
         deck = request.form["deck"]
 
-    uniques, dup_count = get_unique_items(anki, items)
-    print(f"[BATCH] Uniques={len(uniques)} dupes={dup_count}")
-    
+    uniques = get_unique_items(anki, items)
+    _push("Prefetching first card…")
     prefetch(anki, current_app.caches, uniques[0], lang)
     session.update(cards=uniques, deck=deck, lang=lang, idx=0)
 
-    return redirect(url_for("picker.step"))
+    return jsonify({"next": url_for("picker.step")})
 
 def get_sanitised(raw) -> list[str]:
+    _push("Sanitising words…")
     try:
         return sanitise(raw)
     except Exception as err:
@@ -58,11 +61,15 @@ def get_unique_words(words: list[str]) -> list[str]:
         if w not in seen:
             seen.add(w); uniq_words.append(w)
     print(f"[BATCH] Sanitiser → {len(uniq_words)} unique words")
+    _push(f"{len(uniq_words)} unique words.")
     return uniq_words
 
 def get_json(uniq_words: list[str]) -> list[dict]:
+    _push("Generating card JSON…")
     try:
-        return make_json(uniq_words)
+        items = make_json(uniq_words)
+        _push(f"Received {len(items)} card(s).")
+        return items
     except Exception as err:
         flash(f"OpenAI card-maker error: {err}")
         return []
@@ -104,4 +111,7 @@ def get_unique_items(anki, items: list[dict]):
     if not uniques:
         return redirect(url_for("index.index"))
 
-    return uniques, dup_count
+    _push(f"Added {len(uniques)} unique card(s).")
+    _push(f"Skipped {dup_count} duplicate(s).")
+
+    return uniques

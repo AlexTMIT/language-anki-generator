@@ -10,6 +10,7 @@ Act as a Belarusian–English lexical helper. Given a comma-separated list of Be
 Rules:
 - Use masculine singular for nouns unless otherwise typical.
 - Never confuse Belarusian with Russian.
+- If the input headword is English and plural (e.g. “cats”, “socks”), first convert it to singular before translating (e.g. “cat”, “sock” → “кат”, “шкарпэтка”).
 
 # Steps
 
