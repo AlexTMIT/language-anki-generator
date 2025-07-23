@@ -1,5 +1,16 @@
-// l2_ui.js
-// Shared overlay, toast, AJAX form hijack, Socket.IO progress wiring.
+// --------------- Socket.IO --------------------------
+const socket = io();
+
+let mySid = null;
+
+socket.on("connect", () => {
+  mySid = socket.id;
+});
+
+socket.on("progress", msg => L2Overlay.show(msg));
+socket.on("done",      data => {
+  window.location.href = data.next;
+});
 
 (function () {
   // ---------- overlay ----------
@@ -28,7 +39,7 @@
     ov.style.display = 'none';
   }
 
-  // expose globally so other scripts can call
+  // expose globally
   window.L2Overlay = { show: showOverlay, hide: hideOverlay };
 
   // ---------- toast from Flask flash ----------------------------
@@ -44,40 +55,29 @@
   });
 
   // ---------- AJAX form hijack (opt-in w/ data-ajax) -------------
-  document.addEventListener('submit', async (e) => {
+  document.addEventListener("submit", async e => {
     const f = e.target;
-    if (!('ajax' in f.dataset)) return;       // not opted in
-    e.preventDefault();
+    if (!("ajax" in f.dataset)) return;  // opt-in only
 
-    showOverlay(f.dataset.msg || 'Working…');
+    e.preventDefault();
+    L2Overlay.show(f.dataset.msg || "Working…");
+
+    const url = new URL(f.action, window.location.origin);
+    if (mySid) url.searchParams.set("sid", mySid);
 
     try {
-      const resp = await fetch(f.action, {
-        method: 'POST',
+      const resp = await fetch(url, {
+        method: "POST",
         body: new FormData(f)
       });
-      const data = await resp.json();
-      hideOverlay();
-      if (data.next) {
-        window.location.href = data.next;
-      } else {
-        console.error('No next URL in response', data);
+      const json = await resp.json();
+      if (json.started) {
+        return;
       }
     } catch (err) {
-      console.error('AJAX form error', err);
-      hideOverlay();
-      alert('Request failed.');
+      console.error(err);
+      alert("Request failed.");
     }
   });
 
-  // ---------- Socket.IO progress feed ----------------------------
-  // (after DOM load so that window.io is guaranteed available)
-  document.addEventListener('DOMContentLoaded', () => {
-    if (typeof io !== 'function') {
-      console.error('Socket.IO client not found!');
-      return;
-    }
-    const socket = io();   // auto-connect (same origin)
-    socket.on('progress', msg => showOverlay(msg));
-  });
 })();

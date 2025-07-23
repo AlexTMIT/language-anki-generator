@@ -5,6 +5,7 @@ If L2_TEST_MODE=1 is set, serve local stub assets.
 import os, random, pathlib
 from ..services.audio_service import get_audio_blob
 from ..services.image_service import google_thumbs
+from app.extensions import socketio
 
 TEST_MODE = os.getenv("L2_TEST_MODE") == "1"
 OFFLINE    = os.getenv("L2_OFFLINE") == "1"
@@ -19,6 +20,7 @@ def prefetch(anki, caches: dict, card_dict: dict, lang: str) -> None:
     caches["thumb"][word] = thumbs
 
     print(f"[PREFETCH] Thumbs={len(thumbs)} for “{word}”")
+    socketio.emit("progress", f"Prefetched {len(thumbs)} thumbnail(s) for “{word}”")
 
     # audio
     fname, blob = get_audio_blob(lang, word)
@@ -26,6 +28,7 @@ def prefetch(anki, caches: dict, card_dict: dict, lang: str) -> None:
     if blob:
         media = anki.store_media(fname, blob)
         caches.setdefault("audio", {})[word] = f"[sound:{media}]"
+        socketio.emit("progress", "Audio clip fetched")
 
 def load_live_mode_content(anki, caches, card_dict, lang, word):
     caches["thumb"][word] = google_thumbs(card_dict["keyword"])

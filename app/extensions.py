@@ -5,4 +5,8 @@ socketio: SocketIO = SocketIO(
     async_mode="eventlet",
 )
 
-caches: dict[str, dict] = {"thumb": {}, "audio": {}}
+caches: dict[str, dict] = {
+    "thumb": {},
+    "audio": {},
+    "jobs": {}
+}
