@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 keys.txt
 keys.env
+app/templates/asdf.txt
