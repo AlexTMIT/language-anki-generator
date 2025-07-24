@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json, os
-from flask import Blueprint, request, redirect, url_for, flash, session, current_app, jsonify, copy_current_request_context
+from flask import Blueprint, request, redirect, url_for, flash, current_app, jsonify, copy_current_request_context
 from ..tasks.prefetch import prefetch
 from ..services.openai_svc import sanitise, make_json
 from app.extensions import socketio
