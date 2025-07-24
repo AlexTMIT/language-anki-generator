@@ -47,7 +47,7 @@ class BatchProcessor:
 
     def push(self, message: str) -> None:
         """Emit a progress message over Socket.IO."""
-        socketio.emit("progress", message, to=self.sid)
+        socketio.emit("progress", message)
         socketio.sleep(0)
 
     def run(self, form: dict) -> None:
@@ -93,24 +93,27 @@ class BatchProcessor:
             raise BatchError(f"Card maker failed: {exc}")
 
     def _filter_duplicates(self, items: list[dict]) -> tuple[list[dict], int]:
+        print(f"[BATCH] Checking for duplicates in {len(items)} cards…")
         self.push("Removing duplicates in Anki…")
         self.anki.ensure_deck(DUPE_DECK)
         new_cards: list[dict] = []
         dup_count = 0
 
-        for card in items:
-            note_id = self.anki.add_minimal_note(
-                DUPE_DECK,
-                current_app.config["ANKI_MODEL"],
-                card["base"],
-            )
-            if note_id is None:
-                dup_count += 1
-                continue
-            self.anki.delete_note(note_id)
-            new_cards.append(card)
+        try:
+            for card in items:
+                note_id = self.anki.add_minimal_note(
+                    DUPE_DECK,
+                    current_app.config["ANKI_MODEL"],
+                    card["base"],
+                )
+                if note_id is None:
+                    dup_count += 1
+                    continue
+                self.anki.delete_note(note_id)
+                new_cards.append(card)
+        finally:
+            self.anki.delete_deck(DUPE_DECK)
 
-        self.anki.delete_deck(DUPE_DECK)
         if dup_count:
             flash(f"⚠ Skipped {dup_count} duplicate(s).")
         if not new_cards:
