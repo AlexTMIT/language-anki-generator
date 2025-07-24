@@ -9,6 +9,8 @@
 
     <form id="f" method="post" enctype="multipart/form-data"
       data-ajax data-msg="Saving note…">
+      <input type="hidden" name="action" id="action" value="keep">
+
       <div class="grid" id="grid">
         {% for u in urls %}
           <label>
@@ -28,7 +30,11 @@
           <button type="button" id="recBtn" class="contrast">🎤 Record</button>
           <input type="hidden" name="audio_b64" id="audio_b64">
         </div>
-        <button class="ghost"   type="submit" name="action" value="skip">Skip</button>
+        <button
+          type="button"
+          class="ghost"
+          onclick="document.getElementById('action').value='skip'; document.getElementById('f').submit();"
+        >Skip</button>
         <button class="primary" type="submit" name="action" value="keep" id="btn" disabled>
           Continue
         </button>
