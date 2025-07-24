@@ -19,12 +19,11 @@ class AnkiClient:
         self.url = endpoint
         self.timeout = timeout
         self.session = requests.Session()  # keep TCP connection open
-        self.session.headers["Connection"] = "close"
 
     # ---------- core RPC -----------------------------------------
     def _rpc(self, action: str, **params: Any) -> Any:
         payload = {"action": action, "version": 6, "params": params}
-        res = self.session.post(self.url, json=payload, timeout=self.timeout).json() # connection reset by peer error here
+        res = self.session.post(self.url, json=payload, timeout=self.timeout).json()
         if res.get("error"):
             raise RuntimeError(res["error"])
         return res["result"]
