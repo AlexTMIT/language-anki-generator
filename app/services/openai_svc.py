@@ -17,9 +17,9 @@ PROJECT = HERE.parent.parent
 SANITISE_INSTRUCTIONS = (PROJECT / "instructions" / "sanitise.txt").read_text()
 JSON_INSTRUCTIONS     = (PROJECT / "instructions" / "json_card.txt").read_text()
 
-SANITISER_MODEL   = "gpt-3.5-turbo"
+SANITISER_MODEL   = "gpt-4o-mini-2024-07-18"
 SANITISER_TEMP    = 0.3
-CARDMAKER_MODEL   = "gpt-4o"
+CARDMAKER_MODEL   = "gpt-4.1-mini"
 CARDMAKER_TEMP    = 0.1
 
 def _push(msg: str) -> None:
