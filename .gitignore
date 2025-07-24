@@ -161,3 +161,4 @@ cython_debug/
 keys.txt
 keys.env
 app/templates/asdf.txt
+new_words.txt
