@@ -77,7 +77,8 @@ class AnkiClient:
                 "tags": ["dupe-check"],
             })
         except RuntimeError as err:
-            if "duplicate" in str(err).lower():
+            msg = str(err).lower()
+            if "duplicate" in msg or "identical" in msg:
                 return None
             raise
 
