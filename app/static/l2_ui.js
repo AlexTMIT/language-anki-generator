@@ -59,6 +59,16 @@ socket.on("done",      data => {
     const f = e.target;
     if (!("ajax" in f.dataset)) return;  // opt-in only
 
+    const raw = f.querySelector("#blob").value.trim();
+    const ok  = /^\s*[^,\s]+(?:, [^,\s]+)*\s*$/.test(raw);
+    if (!ok) {
+      const msg = "Words must be separated by ', ' (comma + space).";
+      document.getElementById("blobErr").style.display = "block";
+      document.getElementById("blobErr").textContent = msg;
+      return;                         // ⬅ abort submit
+    }
+    document.getElementById("blobErr").style.display = "none";
+
     e.preventDefault();
     L2Overlay.show(f.dataset.msg || "Working…");
 
@@ -76,7 +86,7 @@ socket.on("done",      data => {
       }
     } catch (err) {
       console.error(err);
-      alert("Request failed.");
+      alert("Request failed. WTF");
     }
   });
 

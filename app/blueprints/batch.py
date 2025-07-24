@@ -1,10 +1,10 @@
 from __future__ import annotations
-import json
 import os
-from flask import Blueprint, request, redirect, url_for, flash, current_app, jsonify, copy_current_request_context
+from flask import Blueprint, request, flash, current_app, jsonify, copy_current_request_context
 from ..tasks.prefetch import prefetch
-from ..services.openai_svc import sanitise, make_json
+from ..services.openai_svc import make_json
 from app.extensions import socketio
+import re
 
 
 bp = Blueprint("batch", __name__, url_prefix="/batch")
@@ -68,13 +68,17 @@ class BatchProcessor:
             flash(str(err))
 
     def _sanitize(self, blob: str) -> list[str]:
-        self.push("Sanitising words…")
-        try:
-            words = sanitise(blob)
-            self.push(f"→ {len(words)} token(s)")
-            return words
-        except Exception as exc:
-            raise BatchError(f"Sanitiser failed: {exc}")
+        self.push("Validating word list…")
+        if not blob.strip():
+            raise BatchError("Input is empty.")
+        
+        patt = re.compile(r"^\s*[^,]+(?:, [^,]+)*\s*$")
+        if not patt.match(blob):
+            raise BatchError("Words must be separated by ', ' (comma + space).")
+
+        words = [w.strip() for w in blob.split(", ")]
+        self.push(f"→ {len(words)} word(s)")
+        return words
 
     def _unique(self, words: list[str]) -> list[str]:
         self.push("Filtering unique words…")

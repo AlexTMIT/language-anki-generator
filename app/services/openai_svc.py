@@ -5,53 +5,17 @@ import pathlib
 from openai import OpenAI
 from app.extensions import socketio
 
-# ────────────────────────────────────────────────────────────────
-#  Configuration & load instruction prompts (once at import time)
-# ────────────────────────────────────────────────────────────────
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 HERE    = pathlib.Path(__file__).resolve().parent
 PROJECT = HERE.parent.parent
 
-SANITISE_INSTRUCTIONS = (PROJECT / "instructions" / "sanitise.txt").read_text()
-JSON_INSTRUCTIONS     = (PROJECT / "instructions" / "json_card.txt").read_text()
-
-SANITISER_MODEL   = "gpt-4o-mini-2024-07-18"
-SANITISER_TEMP    = 0.3
+JSON_INSTRUCTIONS = (PROJECT / "instructions" / "json_card.txt").read_text()
 CARDMAKER_MODEL   = "gpt-4.1-mini"
 CARDMAKER_TEMP    = 0.1
 
 def _push(msg: str) -> None:
     socketio.emit("progress", msg)
-
-# ────────────────────────────────────────────────────────────────
-#  Public API
-# ────────────────────────────────────────────────────────────────
-
-def sanitise(raw: str) -> list[str]:
-    print(f"[SANITISER] Input: {raw}")
-    print(f"[SANITISER] Input length: {len(raw)} chars")
-    _push("Sanitising word list…")
-    t0 = time.time()
-
-    resp = client.chat.completions.create(
-        model=SANITISER_MODEL,
-        temperature=SANITISER_TEMP,
-        messages=[
-            {"role": "system",  "content": SANITISE_INSTRUCTIONS},
-            {"role": "user",    "content": raw},
-        ],
-    )
-
-    elapsed = time.time() - t0
-    text    = resp.choices[0].message.content.strip()
-    toks    = [tok.strip() for tok in text.split(";") if tok.strip()]
-    print(f"[SANITISER] Response: {text}")
-    print(f"[SANITISER] Output length: {len(text)} chars, {len(toks)} tokens, took {elapsed:.2f}s")
-    _push(f"✔ Sanitised → {len(toks)} unique token(s)")
-    return toks
-
 
 def make_json(words: list[str]) -> list[dict]:
     _push("Asking AI to create JSON card(s)…")
