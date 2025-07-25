@@ -5,10 +5,6 @@ import pathlib
 from openai import OpenAI
 from app.extensions import socketio
 
-# ────────────────────────────────────────────────────────────────
-#  Configuration & load instruction prompts (once at import time)
-# ────────────────────────────────────────────────────────────────
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 HERE    = pathlib.Path(__file__).resolve().parent
@@ -22,12 +18,13 @@ SANITISER_TEMP    = 0.3
 CARDMAKER_MODEL   = "gpt-4.1-mini"
 CARDMAKER_TEMP    = 0.1
 
+TTS_MODEL   = "gpt-4o-mini-tts"
+TTS_VOICE   = "ash"
+TTS_SPEED   = 1.0
+TTS_FORMAT  = "mp3"
+
 def _push(msg: str) -> None:
     socketio.emit("progress", msg)
-
-# ────────────────────────────────────────────────────────────────
-#  Public API
-# ────────────────────────────────────────────────────────────────
 
 def sanitise(raw: str) -> list[str]:
     print(f"[SANITISER] Input: {raw}")
@@ -81,3 +78,30 @@ def make_json(words: list[str]) -> list[dict]:
         print(f"[CARDMAKER] JSON parse error: {e}")
         _push(f"❌ Card-maker JSON parse error: {e}")
         raise RuntimeError(f"Card-maker JSON parse error: {e}")
+    
+def tts(word: str, lang: str) -> bytes:
+    prompt = word.strip()
+    if not prompt:
+        raise ValueError("Word must be non-empty")
+
+    instructions = (
+        "Speak in a regular speaking tone fitting to the context. "
+        f"The language is {lang}."
+    )
+
+    _push(f"Generating TTS for “{word}”…")
+    t0 = time.time()
+
+    response = client.audio.speech.create(
+        model           = TTS_MODEL,
+        input           = prompt,
+        voice           = TTS_VOICE,
+        speed           = TTS_SPEED,
+        response_format = TTS_FORMAT,
+        instructions    = instructions,
+    )
+
+    elapsed = time.time() - t0
+    _push(f"✔ TTS ready ({elapsed:.2f}s)")
+
+    return response.content
