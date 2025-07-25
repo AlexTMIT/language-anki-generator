@@ -6,9 +6,6 @@ from typing import Any
 import requests
 
 
-# ────────────────────────────────────────────────────────────────
-# Real AnkiConnect client (unchanged network behaviour)
-# ────────────────────────────────────────────────────────────────
 class AnkiClient:
     def __init__(
         self,
@@ -94,71 +91,3 @@ class AnkiClient:
         out = self._rpc("multi", actions=actions)
         print("[ANKI] multi result:", out)
         return out
-
-# ────────────────────────────────────────────────────────────────
-# Dummy client for L2_TEST_MODE=1 (no Anki required)
-# ────────────────────────────────────────────────────────────────
-class DummyAnkiClient:
-    """In-memory stub: mimics enough of AnkiConnect for TEST mode."""
-
-    def __init__(self):
-        self.decks = {"1TEST_DECK"}
-        self.media: dict[str, bytes] = {}
-        self.notes: list[dict] = []
-
-    # ---- deck helpers -------------------------------------------
-    def deck_names(self) -> list[str]:
-        return list(self.decks)
-
-    def ensure_deck(self, name: str) -> None:
-        self.decks.add(name)
-
-    # ---- media ---------------------------------------------------
-    def store_media(self, fname: str, raw: bytes) -> str:
-        self.media[fname] = raw
-        return fname
-
-    # ---- note helpers -------------------------------------------
-    def add_note(self, *args, **kwargs) -> bool:
-        """
-        Accept either:
-          • add_note(deck, model, fields)
-          • add_note(note= {...})   (keyword style used by multi())
-        """
-
-        print("[DUMMY] add_note", "kwargs" if kwargs else "positional")
-
-        if kwargs:  # keyword style
-            note = kwargs.get("note") or kwargs
-            self.notes.append(note)
-        else:       # positional style
-            deck, model, fields = args[:3]
-            self.notes.append(
-                {"deckName": deck, "modelName": model, "fields": fields}
-            )
-        return True
-
-    def add_minimal_note(self, *_, **__) -> int | None:
-        # Always pretend word is unique in TEST mode
-        return 1
-
-    def delete_note(self, note_id: int) -> None:
-        pass
-
-    def delete_deck(self, name: str) -> None:
-        self.decks.discard(name)
-
-    # ---- batch ---------------------------------------------------
-    def multi(self, actions: list[dict]) -> list:
-        results = []
-        for act in actions:
-            if act["action"] == "storeMediaFile":
-                p = act["params"]
-                self.store_media(p["filename"], b"dummy")
-                results.append(p["filename"])
-            elif act["action"] == "addNote":
-                self.add_note(note=act["params"]["note"])
-                results.append(1)
-            else:
-                results.append(None)
-        return results

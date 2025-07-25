@@ -13,22 +13,15 @@ from PIL import Image, UnidentifiedImageError
 
 from ..models.card import CardData
 
-# Configuration
-MAX_W = 640  # px max width for images
-TEST_MODE = os.getenv("L2_TEST_MODE") == "1"
-ASSET_DIR = Path(__file__).parent.parent / "test_assets"
+MAX_W = 640 
 AUDIO_MIME_EXT = {"audio/webm": ".webm", "audio/ogg": ".ogg", "audio/mpeg": ".mp3"}
 
 
 def _download_content(url: str) -> bytes:
-    """Fetch raw bytes, with test-mode override for stubs."""
-    if TEST_MODE and url.startswith("/static/test/thumbs/"):
-        return (ASSET_DIR / "thumbs" / Path(url).name).read_bytes()
     return requests.get(url, timeout=20).content
 
 
 def _compress_image(raw: bytes) -> bytes:
-    """Resize + JPEG recompress if too large; fallback to original on error."""
     try:
         img = Image.open(BytesIO(raw))
         img.thumbnail((MAX_W, MAX_W * 2), Image.LANCZOS)
@@ -66,10 +59,6 @@ def _process_images(
     sel_urls: List[str], uploads: List[Tuple[str, bytes]],
     actions: List[dict]
 ) -> List[str]:
-    """
-    Process up to 3 images from URLs then uploads.
-    Returns list of HTML img tags and appends storeMedia actions.
-    """
     img_tags: List[str] = []
     # Helper to stage
     def try_url(url: str) -> None:
