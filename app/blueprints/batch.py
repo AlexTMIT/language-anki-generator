@@ -36,10 +36,6 @@ def start() -> jsonify:
 
 
 class BatchProcessor:
-    """
-    Encapsulates batch processing: sanitising, de-duplicating, and preparing cards.
-    """
-
     def __init__(self, anki_client, cache_store: dict, sid: str) -> None:
         self.anki = anki_client
         self.caches = cache_store
@@ -56,16 +52,19 @@ class BatchProcessor:
         """
         try:
             words = self._sanitize(form.get("blob", ""))
-            unique_words = self._unique(words)
-            items = self._generate_json(unique_words)
-            cards, duplicates = self._filter_duplicates(items)
+            words = self._unique(words)
+            words, dup_words = self._filter_duplicates(words)
+            cards_raw = self._generate_json(words)
+            cards, dup_cards = self._filter_duplicates(cards_raw)
             self._prefetch_media(cards[0], form.get("lang"))
             self._store_results(cards, form)
-            self.push("All done! Opening picker…")
+            total_dups = dup_words + dup_cards
+            self.push(f"Removed this many duplicates: {total_dups}")
             socketio.emit("done", {"next": f"/picker/?sid={self.sid}"}, to=self.sid)
+
         except BatchError as err:
+            print(f"[BATCH] Error: {err}")
             self.push(f"❌ {err}")
-            flash(str(err))
 
     def _sanitize(self, blob: str) -> list[str]:
         self.push("Sanitising words…")
@@ -92,35 +91,37 @@ class BatchProcessor:
         except Exception as exc:
             raise BatchError(f"Card maker failed: {exc}")
 
-    def _filter_duplicates(self, items: list[dict]) -> tuple[list[dict], int]:
-        print(f"[BATCH] Checking for duplicates in {len(items)} cards…")
+    def _filter_duplicates(
+        self, items: list[str] | list[dict]
+    ) -> tuple[list[str] | list[dict], int]:
         self.push("Removing duplicates in Anki…")
         self.anki.ensure_deck(DUPE_DECK)
-        new_cards: list[dict] = []
+        fresh: list[str] | list[dict] = []
         dup_count = 0
 
         try:
-            for card in items:
+            for it in items:
+                base = it["base"] if isinstance(it, dict) else it
                 note_id = self.anki.add_minimal_note(
                     DUPE_DECK,
                     current_app.config["ANKI_MODEL"],
-                    card["base"],
+                    base,
                 )
                 if note_id is None:
                     dup_count += 1
                     continue
-                self.anki.delete_note(note_id)
-                new_cards.append(card)
+                self.anki.delete_note(note_id)        # clean up temp note
+                fresh.append(it)
         finally:
             self.anki.delete_deck(DUPE_DECK)
 
         if dup_count:
             flash(f"⚠ Skipped {dup_count} duplicate(s).")
-        if not new_cards:
-            raise BatchError("No new cards to add.")
+        if not fresh:
+            raise BatchError("No new items to add.")
 
-        self.push(f"→ {len(new_cards)} new / {dup_count} duplicate(s)")
-        return new_cards, dup_count
+        self.push(f"→ {len(fresh)} new / {dup_count} duplicate(s)")
+        return fresh, dup_count
 
     def _prefetch_media(self, card: dict, lang: str | None) -> None:
         self.push("Prefetching media…")
