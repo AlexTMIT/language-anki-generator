@@ -6,6 +6,8 @@ from ..tasks.prefetch import prefetch
 from ..tasks.save_note import save_note
 from ..models.card import CardData
 
+from app.extensions import socketio
+
 bp = Blueprint("picker", __name__, url_prefix="/picker")
 
 
@@ -67,15 +69,22 @@ def step():
             current_app.caches["jobs"].pop(sid, None)
             return redirect(url_for("index.index"))
 
-        # Prefetch next card (still synchronous here)
-        next_card = cards[job["idx"]]
-        prefetch(current_app.anki, current_app.caches, next_card, job["lang"])
-
         return redirect(url_for("picker.step", sid=sid))
 
     # ────────── GET: render picker for current card ──────────────
     card = CardData.from_dict(cards[idx])
     urls = current_app.caches["thumb"].get(card.base, [])
+
+    if idx + 1 < len(cards):
+        next_card = cards[idx + 1]
+        if next_card["base"] not in current_app.caches.get("thumb", {}):
+            socketio.start_background_task(
+                prefetch,
+                current_app.anki,
+                current_app.caches,
+                next_card,
+                job["lang"],
+            )
 
     return render_template(
         "picker.html",
