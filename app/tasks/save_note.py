@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import os
 import uuid
 from io import BytesIO
 from pathlib import Path
@@ -56,13 +55,19 @@ def _stage_image(actions: List[dict], img_tags: List[str], raw: bytes, ext: str 
 
 
 def _process_images(
-    sel_urls: List[str], uploads: List[Tuple[str, bytes]],
-    actions: List[dict]
+    sel_urls: List[str], 
+    uploads: List[Tuple[str, bytes]],
+    actions: List[dict],
+    caches  : dict
 ) -> List[str]:
     img_tags: List[str] = []
-    # Helper to stage
+
     def try_url(url: str) -> None:
-        raw = _download_content(url)
+        raw = caches.get("thumb_raw", {}).get(url)
+        if raw is None:
+            print(f"Cache miss: Downloading image from {url}")
+            raw = _download_content(url)
+
         comp = _compress_image(raw)
         if _is_valid_image(comp) and len(img_tags) < 3:
             ext = Path(urlparse(url).path).suffix or ".jpg"
@@ -133,7 +138,7 @@ def save_note(
     full_audio = user_tag + cached_tag
 
     # Images
-    img_tags = _process_images(sel_urls, uploads, actions)
+    img_tags = _process_images(sel_urls, uploads, actions, caches)
     if not img_tags:
         print(f"[SAVE] no valid images for '{card.base}', skipping.")
         return

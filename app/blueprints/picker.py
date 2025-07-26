@@ -46,7 +46,8 @@ def step():
             uploads  = [(f.filename, f.read()) for f in request.files.getlist("file")]
             rec_b64  = request.form.get("audio_b64", "")
 
-            save_note(
+            socketio.start_background_task(
+                save_note,
                 deck       = job["deck"],
                 anki_model = current_app.config["ANKI_MODEL"],
                 anki       = current_app.anki,
@@ -57,7 +58,7 @@ def step():
                 rec_b64    = rec_b64,
                 lang       = job["lang"],
             )
-            flash(f"Added “{cards[idx]['base']}”.")
+            flash(f"Added “{cards[idx]['base']}” (processing in background)…")
         else:
             flash(f"Skipped “{cards[idx]['base']}”.")
 
