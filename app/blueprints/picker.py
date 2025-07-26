@@ -1,8 +1,5 @@
-import time
-
 from __future__ import annotations
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for, flash
-
 from ..tasks.prefetch import prefetch
 from ..tasks.save_note import save_note
 from ..models.card import CardData

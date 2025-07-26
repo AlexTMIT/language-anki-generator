@@ -12,6 +12,9 @@ from PIL import Image, UnidentifiedImageError
 
 from ..models.card import CardData
 
+import eventlet, time as _t
+
+POOL = eventlet.GreenPool(size=3)
 MAX_W = 640 
 AUDIO_MIME_EXT = {"audio/webm": ".webm", "audio/ogg": ".ogg", "audio/mpeg": ".mp3"}
 
@@ -19,6 +22,15 @@ AUDIO_MIME_EXT = {"audio/webm": ".webm", "audio/ogg": ".ogg", "audio/mpeg": ".mp
 def _download_content(url: str) -> bytes:
     return requests.get(url, timeout=20).content
 
+def _download_and_cache(url: str, caches: dict) -> tuple[str, bytes | None, float]:
+    """Helper that fetches one URL and returns (url, data|None, dt)."""
+    t0 = _t.perf_counter()
+    try:
+        raw = requests.get(url, timeout=20).content
+        caches.setdefault("thumb_raw", {})[url] = raw
+        return url, raw, _t.perf_counter() - t0
+    except Exception:
+        return url, None, _t.perf_counter() - t0
 
 def _compress_image(raw: bytes) -> bytes:
     try:
@@ -55,25 +67,28 @@ def _stage_image(actions: List[dict], img_tags: List[str], raw: bytes, ext: str 
 
 
 def _process_images(
-    sel_urls: List[str], 
-    uploads: List[Tuple[str, bytes]],
-    actions: List[dict],
-    caches  : dict
+    sel_urls: List[str],
+    uploads : List[Tuple[str, bytes]],
+    actions : List[dict],
+    caches  : dict,
 ) -> List[str]:
     img_tags: List[str] = []
+    t_total = _t.perf_counter()
 
+    # ---------- parallel fetch any missing originals ----------
+    need_dl = [u for u in sel_urls if u not in caches.get("thumb_raw", {})]
+    for url, raw, dt in POOL.imap(lambda u: _download_and_cache(u, caches), need_dl):
+        sz = len(raw or b"") / 1024
+        print(f"[timing]   GET {url[:55]}… {sz:6.1f} KiB in {dt:4.2f}s")
+
+    # ---------- now build note fields ----------
     def try_url(url: str) -> None:
-        raw = caches.get("thumb_raw", {}).get(url)
-        if raw is None:
-            print(f"Cache miss: Downloading image from {url}")
-            raw = _download_content(url)
-
+        raw = caches.get("thumb_raw", {}).get(url, b"")
         comp = _compress_image(raw)
         if _is_valid_image(comp) and len(img_tags) < 3:
             ext = Path(urlparse(url).path).suffix or ".jpg"
             _stage_image(actions, img_tags, comp, ext)
 
-    # Remote URLs first
     for url in sel_urls:
         if len(img_tags) >= 3:
             break
@@ -82,7 +97,6 @@ def _process_images(
         except Exception:
             continue
 
-    # Then user uploads
     for name, data in uploads:
         if len(img_tags) >= 3:
             break
@@ -91,6 +105,7 @@ def _process_images(
             ext = Path(name).suffix or ".jpg"
             _stage_image(actions, img_tags, comp, ext)
 
+    print(f"[timing] _process_images total {_t.perf_counter()-t_total:4.2f}s")
     return img_tags
 
 
