@@ -14,10 +14,11 @@ DUPE_DECK = "dupe-check"
 def start() -> jsonify:
     sid = request.args.get("sid")
     form = request.form.to_dict()
+    lang = form.get("lang") or "Unknown"
 
     @copy_current_request_context
     def background_task() -> None:
-        processor = BatchProcessor(current_app.anki, current_app.caches, sid)
+        processor = BatchProcessor(current_app.anki, current_app.caches, sid, lang)
         processor.run(form)
 
     socketio.start_background_task(background_task)
@@ -25,10 +26,11 @@ def start() -> jsonify:
 
 
 class BatchProcessor:
-    def __init__(self, anki_client, cache_store: dict, sid: str) -> None:
+    def __init__(self, anki_client, cache_store: dict, sid: str, lang: str) -> None:
         self.anki = anki_client
         self.caches = cache_store
         self.sid = sid
+        self.lang = lang
 
     def push(self, message: str) -> None:
         """Emit a progress message over Socket.IO."""
@@ -58,7 +60,7 @@ class BatchProcessor:
     def _sanitize(self, blob: str) -> list[str]:
         self.push("Sanitising words…")
         try:
-            words = sanitise(blob)
+            words = sanitise(blob, self.lang)
             self.push(f"→ {len(words)} token(s)")
             return words
         except Exception as exc:
@@ -74,7 +76,7 @@ class BatchProcessor:
     def _generate_json(self, words: list[str]) -> list[dict]:
         self.push("Calling GPT for card JSON…")
         try:
-            items = make_json(words)
+            items = make_json(words, self.lang)
             self.push(f"→ {len(items)} card(s) received")
             return items
         except Exception as exc:

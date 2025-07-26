@@ -21,10 +21,10 @@ class CardData:
             keyword=raw["keyword"].strip(),
         )
 
-    def to_fields(self, audio: str = "", images: Iterable[str] = ()):  # type: ignore[override]
+    def to_fields(self, lang: str, audio: str = "", images: Iterable[str] = ()) -> dict:
         imgs = list(images)[:3]  # hard‑cap at 3
         return {
-            "Word": self.base,
+            "Word": self.base if lang != "da" else self.add_danish_verb_article(self.base, self.grammar),
             "Grammar": self.grammar,
             "Meaning": self.translation,
             "Sentence": self.example,
@@ -34,3 +34,11 @@ class CardData:
             "Image 2": imgs[1] if len(imgs) > 1 else "",
             "Image 3": imgs[2] if len(imgs) > 2 else "",
         }
+
+    def add_danish_verb_article(self, word: str, grammar: str) -> str:
+        if word.startswith(("at ", "en ", "et ")):
+            return word
+        elif grammar.lower() == "verb":
+            return "at " + word
+        else:
+            return word

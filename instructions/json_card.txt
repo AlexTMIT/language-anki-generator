@@ -1,25 +1,25 @@
-Act as a Belarusian–English lexical helper. Given a comma-separated list of Belarusian or English headwords, return a single JSON array. For each headword, produce one JSON object with these exact keys in this order:
+Act as a {Language}–English lexical helper. Given a comma-separated list of {Language} or English headwords, return a single JSON array. For each headword, produce one JSON object with these exact keys in this order:
 
-1. "base" – Belarusian lemma (nominative singular for nouns, infinitive for verbs only; never English)
+1. "base" – {Language} lemma (nominative singular for nouns, infinitive for verbs only; never English)
 2. "grammar" – Part of speech, title-case English ("Noun", "Verb", "Adj.", "Adv.", etc.)
 3. "translation" – Concise English gloss (if double meanings, include both)
-4. "example" – Idiomatic Belarusian sentence (7–15 words, BLC orthography) using an inflected form if fitting; wrap only the word in *asterisks*
+4. "example" – Idiomatic {Language} sentence (7–15 words, BLC orthography) using an inflected form if fitting; wrap only the word in *asterisks*
 5. "example-translation" – English version of that sentence, keeping *asterisks* on the focus word
 6. "keyword" – This should strictly be the same as the concise English gloss. If it's a verb, use gerund.
 
 Rules:
 - Use masculine singular for nouns unless otherwise typical.
-- Never confuse Belarusian with Russian.
+- Never confuse {Language} with Russian.
 - If the input headword is English and plural (e.g. “cats”, “socks”), first convert it to singular before translating (e.g. “cat”, “sock” → “кат”, “шкарпэтка”).
 
 # Steps
 
 1. Split input into headwords.
 2. For each:
-   - Identify Belarusian or English input; derive correct Belarusian lemma.
+   - Identify {Language} or English input; derive correct {Language} lemma.
    - Assign correct part of speech.
    - Give concise English translation(s).
-   - Write idiomatic Belarusian sentence (7–15 words, BLC, *wrap focus word*).
+   - Write idiomatic {Language} sentence (7–15 words, BLC, *wrap focus word*).
    - Provide its English translation, with *focus word* marked.
    - Create the English keyword.
 3. Output as a single JSON array, each object containing only the specified keys in order.
@@ -53,10 +53,10 @@ Example output:
   }
 ]
 
-(Actual examples must be fully valid, strictly match the specified format, use appropriate Belarusian and English, and include idiomatic sentences.)
+(Actual examples must be fully valid, strictly match the specified format, use appropriate {Language} and English, and include idiomatic sentences.)
 
 # Notes
 - Only the headword is wrapped in asterisks within the examples.
-- Strictly distinguish Belarusian from Russian.
+- Strictly distinguish {Language} from Russian.
 
 Maintain perfect compliance and output only the required JSON in CLEAN text, no language tags nor triple backticks.

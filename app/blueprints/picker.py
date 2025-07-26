@@ -53,6 +53,7 @@ def step():
                 sel_urls   = sel_urls,
                 uploads    = uploads,
                 rec_b64    = rec_b64,
+                lang       = job["lang"],
             )
             flash(f"Added “{cards[idx]['base']}”.")
         else:

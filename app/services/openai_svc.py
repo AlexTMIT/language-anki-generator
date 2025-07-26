@@ -26,17 +26,16 @@ TTS_FORMAT  = "mp3"
 def _push(msg: str) -> None:
     socketio.emit("progress", msg)
 
-def sanitise(raw: str) -> list[str]:
-    print(f"[SANITISER] Input: {raw}")
-    print(f"[SANITISER] Input length: {len(raw)} chars")
+def sanitise(raw: str, language: str) -> list[str]:
     _push("Sanitising word list…")
     t0 = time.time()
 
+    instr = SANITISE_INSTRUCTIONS.replace("{Language}", language)
     resp = client.chat.completions.create(
         model=SANITISER_MODEL,
         temperature=SANITISER_TEMP,
         messages=[
-            {"role": "system",  "content": SANITISE_INSTRUCTIONS},
+            {"role": "system",  "content": instr},
             {"role": "user",    "content": raw},
         ],
     )
@@ -44,38 +43,38 @@ def sanitise(raw: str) -> list[str]:
     elapsed = time.time() - t0
     text    = resp.choices[0].message.content.strip()
     toks    = [tok.strip() for tok in text.split(";") if tok.strip()]
-    print(f"[SANITISER] Response: {text}")
-    print(f"[SANITISER] Output length: {len(text)} chars, {len(toks)} tokens, took {elapsed:.2f}s")
+
     _push(f"✔ Sanitised → {len(toks)} unique token(s)")
+    print(f"[SANITISER] Response: {text} (took {elapsed:.2f}s)")
     return toks
 
 
-def make_json(words: list[str]) -> list[dict]:
+def make_json(words: list[str], lang: str) -> list[dict]:
     _push("Asking AI to create JSON card(s)…")
-    prompt = ", ".join(words)
-    print(f"[CARDMAKER] Prompt: {words}, {len(prompt)} chars")
     t0 = time.time()
+
+    instr = JSON_INSTRUCTIONS.replace("{Language}", lang)
+    prompt = ", ".join(words)
 
     resp = client.chat.completions.create(
         model=CARDMAKER_MODEL,
         temperature=CARDMAKER_TEMP,
         messages=[
-            {"role": "system", "content": JSON_INSTRUCTIONS},
+            {"role": "system", "content": instr},
             {"role": "user",   "content": prompt},
         ],
     )
 
     elapsed  = time.time() - t0
     json_str = resp.choices[0].message.content.strip()
-    print(f"[CARDMAKER] Response: {json_str}, took {elapsed:.2f}s")
+    print(f"[CARDMAKER] Response received (took {elapsed:.2f}s)")
 
     try:
         items = json.loads(json_str)
-        print(f"[CARDMAKER] Parsed {len(items)} JSON objects ✅")
         _push(f"✔ Received {len(items)} card(s) from GPT")
+        print(f"Response JSON: {json_str}")
         return items
-    except Exception as e:
-        print(f"[CARDMAKER] JSON parse error: {e}")
+    except json.JSONDecodeError as e:
         _push(f"❌ Card-maker JSON parse error: {e}")
         raise RuntimeError(f"Card-maker JSON parse error: {e}")
     
