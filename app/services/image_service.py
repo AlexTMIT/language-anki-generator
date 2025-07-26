@@ -12,7 +12,7 @@ def google_thumbs(query: str, k: int = 20) -> List[str]:
         "key": settings.GOOGLE_CSE_KEY.get_secret_value(),
         "cx": settings.GOOGLE_CSE_CX,
         "searchType": "image",
-        "safe": "active",
+        "safe": "off",
         "q": query,
         "num": 10,
     }

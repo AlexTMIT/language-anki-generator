@@ -1,5 +1,6 @@
-from __future__ import annotations
+import time
 
+from __future__ import annotations
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for, flash
 
 from ..tasks.prefetch import prefetch
@@ -13,20 +14,6 @@ bp = Blueprint("picker", __name__, url_prefix="/picker")
 
 @bp.route("/", methods=["GET", "POST"])
 def step():
-    """
-    Show the image-picker for the current card — or handle the user’s
-    choice — for the *job* that belongs to the Socket-IO session `sid`
-    that the front-end passes in the query-string.
-
-    Data flow:
-
-        browser ── sid ──► caches["jobs"][sid] = {
-            "cards": [...],     # list[dict]  – immutable
-            "deck" : str,       # target deck
-            "lang" : str,       # L2 code
-            "idx"  : int        # current position (mutates)
-        }
-    """
     sid = request.args.get("sid")
     job = current_app.caches["jobs"].get(sid)
 
@@ -35,7 +22,7 @@ def step():
         return redirect(url_for("index.index"))
 
     cards = job["cards"]
-    idx   = job.setdefault("idx", 0)           # 0 on first entry
+    idx   = job.setdefault("idx", 0)
 
     # ────────── POST: user clicked “Skip” / “Continue” ──────────
     if request.method == "POST":
