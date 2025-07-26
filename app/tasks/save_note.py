@@ -117,6 +117,7 @@ def save_note(
     *, deck: str, anki_model: str, anki, caches: dict,
     card_dict: dict, sel_urls: List[str],
     uploads: List[Tuple[str, bytes]], rec_b64: str = "",
+    lang: str
 ) -> None:
     """
     Add a single Anki note with up to 3 images and optional user audio.
@@ -138,7 +139,7 @@ def save_note(
         return
 
     # Build note
-    fields = card.to_fields(audio=full_audio, images=img_tags)
+    fields = card.to_fields(audio=full_audio, images=img_tags, lang=lang)
     actions.append({
         "action": "addNote",
         "params": {
