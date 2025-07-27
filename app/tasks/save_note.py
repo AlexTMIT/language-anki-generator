@@ -18,10 +18,6 @@ POOL = eventlet.GreenPool(size=3)
 MAX_W = 640 
 AUDIO_MIME_EXT = {"audio/webm": ".webm", "audio/ogg": ".ogg", "audio/mpeg": ".mp3"}
 
-
-def _download_content(url: str) -> bytes:
-    return requests.get(url, timeout=20).content
-
 def _download_and_cache(url: str, caches: dict) -> tuple[str, bytes | None, float]:
     """Helper that fetches one URL and returns (url, data|None, dt)."""
     t0 = _t.perf_counter()
@@ -31,17 +27,6 @@ def _download_and_cache(url: str, caches: dict) -> tuple[str, bytes | None, floa
         return url, raw, _t.perf_counter() - t0
     except Exception:
         return url, None, _t.perf_counter() - t0
-
-def _compress_image(raw: bytes) -> bytes:
-    try:
-        img = Image.open(BytesIO(raw))
-        img.thumbnail((MAX_W, MAX_W * 2), Image.LANCZOS)
-        buf = BytesIO()
-        img.save(buf, format="JPEG", quality=80)
-        return buf.getvalue()
-    except Exception:
-        return raw
-
 
 def _is_valid_image(raw: bytes) -> bool:
     """Check that bytes decode to a non-empty image."""
@@ -53,7 +38,10 @@ def _is_valid_image(raw: bytes) -> bool:
             return img.width > 0 and img.height > 0
     except (UnidentifiedImageError, OSError, ValueError):
         return False
-
+    
+def _is_valid_image_fast(raw: bytes) -> bool:
+    # only check the first 4 bytes – JPEG = 0xFFD8FFE?
+    return raw[:2] == b"\xFF\xD8"
 
 def _stage_image(actions: List[dict], img_tags: List[str], raw: bytes, ext: str = ".jpg") -> None:
     """Add storeMedia and img tag actions for a valid image."""
@@ -84,10 +72,9 @@ def _process_images(
     # ---------- now build note fields ----------
     def try_url(url: str) -> None:
         raw = caches.get("thumb_raw", {}).get(url, b"")
-        comp = _compress_image(raw)
-        if _is_valid_image(comp) and len(img_tags) < 3:
+        if _is_valid_image_fast(raw) and len(img_tags) < 3:
             ext = Path(urlparse(url).path).suffix or ".jpg"
-            _stage_image(actions, img_tags, comp, ext)
+            _stage_image(actions, img_tags, raw, ext)
 
     for url in sel_urls:
         if len(img_tags) >= 3:
@@ -100,10 +87,9 @@ def _process_images(
     for name, data in uploads:
         if len(img_tags) >= 3:
             break
-        comp = _compress_image(data)
-        if _is_valid_image(comp):
+        if _is_valid_image(data):
             ext = Path(name).suffix or ".jpg"
-            _stage_image(actions, img_tags, comp, ext)
+            _stage_image(actions, img_tags, data, ext)
 
     print(f"[timing] _process_images total {_t.perf_counter()-t_total:4.2f}s")
     return img_tags
