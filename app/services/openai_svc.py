@@ -84,7 +84,7 @@ def tts(word: str, lang: str) -> bytes:
         raise ValueError("Word must be non-empty")
 
     instructions = (
-        "Speak in a regular speaking tone fitting to the context. "
+        "Speak in a regular speaking tone fitting to the context. Keep a natural accent of the language."
         f"The language is {lang}."
     )
 
