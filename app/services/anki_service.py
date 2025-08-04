@@ -1,6 +1,9 @@
 from __future__ import annotations
 import base64
 from hashlib import md5
+import subprocess
+import sys
+import time
 from typing import Any
 
 import requests
@@ -16,6 +19,35 @@ class AnkiClient:
         self.url = endpoint
         self.timeout = timeout
         self.session = requests.Session()  # keep TCP connection open
+        self._ensure_anki_running()
+
+    def _ensure_anki_running(self, retries: int = 5, delay: float = 1.0) -> None:
+        """
+        Make sure AnkiConnect is reachable. If not, launch Anki once and retry.
+        """
+        for attempt in range(retries):
+            try:
+                self._rpc("version")
+                return
+            except Exception:
+                if attempt == 0:
+                    print("[ANKI] AnkiConnect not reachable, launching Anki…")
+                    try:
+                        if sys.platform == "darwin":
+                            subprocess.Popen(["open", "-a", "Anki"])
+                        elif sys.platform.startswith("win"):
+                            # Windows: rely on PATH or file association
+                            subprocess.Popen(["cmd", "/c", "start", "", "anki"])
+                        else:
+                            # Linux: assume 'anki' is in PATH
+                            subprocess.Popen(["anki"])
+                    except Exception as launch_err:
+                        print(f"[ANKI] Failed to launch Anki: {launch_err!r}")
+                print(f"[ANKI] Waiting {delay:.1f}s for AnkiConnect (attempt {attempt+1}/{retries})")
+                time.sleep(delay)
+
+        raise RuntimeError("Unable to connect to AnkiConnect after launching Anki.")
+
 
     # ---------- core RPC -----------------------------------------
     def _rpc(self, action: str, **params: Any) -> Any:
