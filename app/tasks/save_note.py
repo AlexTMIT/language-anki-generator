@@ -17,14 +17,26 @@ MAX_W = 640
 AUDIO_MIME_EXT = {"audio/webm": ".webm", "audio/ogg": ".ogg", "audio/mpeg": ".mp3"}
 
 def _download_and_cache(url: str, caches: dict) -> tuple[str, bytes | None, float]:
-    """Helper that fetches one URL and returns (url, data|None, dt)."""
+    """Fetch a URL, validate it's an image, and cache the raw bytes."""
     t0 = _t.perf_counter()
     try:
-        raw = requests.get(url, timeout=20).content
-        caches.setdefault("thumb_raw", {})[url] = raw
-        return url, raw, _t.perf_counter() - t0
+        resp = requests.get(url, timeout=20)
+        elapsed = _t.perf_counter() - t0
+
+        ct = resp.headers.get("Content-Type", "")
+        if not ct.startswith("image/"):
+            return url, None, elapsed
+
+        raw = resp.content
+        if raw.startswith(b"\xFF\xD8") or raw.startswith(b"\x89PNG") or raw.startswith(b"GIF"):
+            caches.setdefault("thumb_raw", {})[url] = raw
+            return url, raw, elapsed
+        else:
+            return url, None, elapsed
+
     except Exception:
-        return url, None, _t.perf_counter() - t0
+        elapsed = _t.perf_counter() - t0
+        return url, None, elapsed
 
 def _stage_image(actions: List[dict], img_tags: List[str], raw: bytes, ext: str = ".jpg") -> None:
     """Add storeMedia and img tag actions for a valid image."""

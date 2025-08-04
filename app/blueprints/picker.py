@@ -26,7 +26,7 @@ def step():
         action = request.form.get("action", "keep")
 
         if action == "keep":
-            sel_urls = request.form.getlist("url")
+            sel_urls = [u for u in request.form.getlist("url") if u and u != "on"]
             uploads  = [(f.filename, f.read()) for f in request.files.getlist("file")]
             rec_b64  = request.form.get("audio_b64", "")
 
