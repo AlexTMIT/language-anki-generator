@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}L2 Flashcard Maker{% endblock %}
+{% block css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+{% endblock %}
+{% block body_class %}landing{% endblock %}
+
+{% block content %}
+  <main>
+    <h1>L2 Flashcard Maker</h1>
+    <p>A tool created to help you learn languages faster, and better.</p>
+
+    <nav class="btn-row">
+      <a class="btn btn-outline" href="#">Stats</a>
+      <a class="btn btn-outline" href="#">Quiz</a>
+      <a class="btn btn-outline" href="#">Story</a>
+      <a class="btn btn-primary" href="{{ url_for('flashcards.make_flashcards') }}">Create</a>
+    </nav>
+  </main>
+{% endblock %}
+{% block js %}
+  <script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+{% endblock %}

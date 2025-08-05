@@ -7,14 +7,14 @@ from ..config import settings
 CSE_URL = "https://customsearch.googleapis.com/customsearch/v1"
 
 
-def google_thumbs(query: str, k: int = 20) -> List[str]:
+def google_thumbs(query: str, k: int = 8) -> List[str]:
     params = {
         "key": settings.GOOGLE_CSE_KEY.get_secret_value(),
         "cx": settings.GOOGLE_CSE_CX,
         "searchType": "image",
         "safe": "off",
         "q": query,
-        "num": 10,
+        "num": k,
     }
     try:
         res = requests.get(CSE_URL, params=params, timeout=20)

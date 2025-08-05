@@ -1,0 +1,122 @@
+/* -------- page frame ------------------------------------------------ */
+body.flashcards{
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 var(--space-2);
+}
+body.flashcards main{
+  width: 100%;
+  max-width: 720px;
+}
+
+/* -------- headline -------------------------------------------------- */
+body.flashcards h1{
+  margin: 0 0 var(--space-2);
+  font-size: 2.6rem;
+  font-weight: 600;
+  text-align: center;
+}
+body.flashcards .subtitle{
+  margin: 0 0 var(--space-4);
+  font-size: 1rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* -------- form grid ------------------------------------------------- */
+.flashcard-form{
+  display: grid;
+  row-gap: var(--space-3);
+}
+.flashcard-form .half{
+  width: 100%;
+}
+.flashcard-form .full{
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 640px) {
+  .flashcard-form{
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: var(--space-3);
+  }
+}
+
+/* label vertical spacing */
+.flashcard-form label{
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* -------- inputs ------------------------------------------------- */
+body.flashcards select,
+body.flashcards textarea {
+  width: 100%;
+  padding: var(--space-2);
+  font-size: .95rem;
+  background-color: #20232b;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border .15s;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* custom dropdown arrow (optional) */
+body.flashcards select {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2210%22%20height%3D%226%22%20viewBox%3D%220%200%2010%206%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M0%200l5%206%205-6z%22%20fill%3D%22%2360636F%22/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-2) center;
+  background-size: 10px 6px;
+}
+
+/* placeholder color until user picks a real value, matching textarea placeholder */
+body.flashcards select:invalid {
+  color: #60636f;
+}
+body.flashcards select option[value=""] {
+  color: #60636f;
+}
+
+body.flashcards textarea{
+  min-height: 160px;
+  resize: vertical;
+}
+
+body.flashcards select:focus,
+body.flashcards textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+body.flashcards ::placeholder{
+  color: #60636f;
+}
+
+/* -------- button row ------------------------------------------------- */
+.btn-row {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-start;
+}
+.btn-row > :first-child {
+  margin-right: auto;
+}
+
+/* JSON Mode always enabled styling override */
+.btn-row button[type="button"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+  pointer-events: all !important;
+}
+
+.flashcard-form .btn-row{
+  align-items: flex-start;
+}

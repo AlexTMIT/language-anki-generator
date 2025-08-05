@@ -1,0 +1,24 @@
+/* palette & reset ------------------------------------------------- */
+:root{
+  --primary:#5744EE;               /* ▲ new purple                 */
+  --primary-hover:#493BD0;         /* 10-12 % darker               */
+
+  --bg:#0E0F14;                    /* subtle tweak to pure #0f1116 */
+  --card-bg:#20232b;
+  --border:#2a2d37;
+  --text:#FFFFFF;
+  --text-dim:#8F929E;              /* lighter grey for subtitles   */
+
+  --radius:12px;
+  --fast:100ms ease;
+
+  /* vertical rhythm (baseline grid = 8 px) */
+  --unit:8px;
+  --space-1: calc(var(--unit) * 1);   /* 8 px  */
+  --space-2: calc(var(--unit) * 2);   /* 16 px */
+  --space-3: calc(var(--unit) * 3);   /* 24 px */
+  --space-4: calc(var(--unit) * 4);   /* 32 px */
+}
+
+*,*::before,*::after{box-sizing:border-box;}
+html,body{height:100%;margin:0;font-family:'Inter',sans-serif;}

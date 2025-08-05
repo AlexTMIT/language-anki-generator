@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Create Flashcards{% endblock %}
+
+{% block body_class %}flashcards{% endblock %}
+{% block css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Flashcard Info</h1>
+  <p class="subtitle">Enter Anki your deck name, language, and words here.</p>
+
+  <form  class="flashcard-form"
+         method="post"
+         action="{{ url_for('batch.start') }}"
+         data-ajax
+         data-msg="Creating cards…">
+
+    <!-- row 1 : two halves -->
+    <label class="half">
+      Deck Name
+      <select name="deck" required>
+        <option value="" disabled selected>Select your Anki deck…</option>
+        {% for d in decks %}<option>{{ d }}</option>{% endfor %}
+      </select>
+    </label>
+
+    <label class="half">
+      Target Language
+      <select name="lang" required>
+        <option value="" disabled selected>Select your target language…</option>
+        <option value="Belarusian">Belarusian</option>
+        <option value="Danish">Danish</option>
+      </select>
+    </label>
+
+    <!-- textarea spans both columns -->
+    <label class="full">
+      Input
+      <textarea name="blob"
+                placeholder="apple, to run, happy…" ></textarea>
+    </label>
+
+    <!-- button row spans both columns -->
+    <div class="btn-row full">
+      <a class="btn btn-outline" href="{{ url_for('site.landing') }}">Back</a>
+      <button
+            type="button"
+            class="btn btn-outline js-json-mode"
+        >
+            JSON&nbsp;Mode
+        </button>
+      <button type="submit"  class="btn btn-primary">Continue</button>
+    </div>
+  </form>
+</main>
+{% endblock %}
+
+{% block js %}
+  <script src="{{ url_for('static', filename='js/flashcards.js') }}" defer></script>
+{% endblock %}

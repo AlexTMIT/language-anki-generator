@@ -1,0 +1,8 @@
+body.landing{
+  background:var(--bg);color:var(--text);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;padding:0 var(--space-2);
+}
+h1{margin:0 0 var(--space-2);font-size:3rem;font-weight:600;}
+p {margin:0 0 var(--space-4);color:var(--text-dim);}
+.btn-row{display:flex;gap:var(--space-3);}
