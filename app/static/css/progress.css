@@ -1,0 +1,134 @@
+/* static/css/progress.css */
+
+:root {
+  --primary:  #5744EE;
+  --bg:       #0E0F14;
+  --text:     #FFFFFF;
+  --text-dim: #8F929E;
+  --fast:     150ms ease;
+}
+
+/* ── Page & Centering ───────────────────────────────────────────────── */
+body.loader {
+  background:      var(--bg);
+  color:           var(--text);
+  font-family:     "Inter", sans-serif;
+  display:         flex;
+  flex-direction:  column;
+  justify-content: center;
+  align-items:     center;
+  min-height:      100vh;
+  margin:          0;
+  text-align:      center;
+}
+
+/* ── Headline & Subtitle ────────────────────────────────────────────── */
+h1 {
+  font-size:   2.4rem;
+  margin:      .5rem 0;
+  font-weight: 600;
+}
+.subtitle {
+  margin:     0 0 3rem;
+  color:      var(--text-dim);
+  font-size:  1rem;
+}
+
+/* ── Dynamic “current task” label ──────────────────────────────────── */
+#task-label {
+  margin:     0 0 1rem;
+  font-size:  1rem;
+  color:      var(--text);
+}
+
+/* ── Progress Bar ──────────────────────────────────────────────────── */
+.bar {
+  position:      relative;
+  width:         560px;
+  max-width:     90vw;
+  height:        6px;
+  background:    #2a2d37;
+  border-radius: 3px;
+  overflow:      hidden;
+  margin-bottom: .5rem;
+}
+.fill {
+  height:      100%;
+  background:  var(--primary);
+  transition:  width var(--fast);
+}
+
+/* ── Percentage + Spinner at Top-Right ─────────────────────────────── */
+.pct {
+  position:     absolute;
+  top:          -1.4rem;
+  right:        0;
+  font-size:    0.8rem;
+  color:        var(--text-dim);
+  display:      inline-flex;
+  align-items:  center;
+  gap:          0.25rem;
+}
+
+/* ── “x of y” Counter Below ─────────────────────────────────────────── */
+.counter {
+  font-size:    0.8rem;
+  color:        var(--text-dim);
+  margin:       .4rem 0 2rem;
+}
+
+/* ── Task List ─────────────────────────────────────────────────────── */
+ul#tasks {
+  list-style:     none;
+  padding:        0;
+  margin:         0;
+  width:          560px;
+  max-width:      90vw;
+  display:        flex;
+  flex-direction: column;
+  gap:            1rem;
+}
+li {
+  display:        flex;
+  align-items:    center;
+  justify-content:center;
+  gap:            0.75rem;
+  font-size:      1rem;
+  color:          var(--text-dim);
+}
+
+/* ── Icons & States ───────────────────────────────────────────────── */
+.icon i {
+  transition: opacity var(--fast);
+}
+@keyframes pulse {
+  0%   { opacity: .3; }
+  50%  { opacity:  1; }
+  100% { opacity: .3; }
+}
+
+li.idle .icon i {
+  color: var(--text-dim);
+}
+
+li.run {
+  color: var(--primary);
+}
+li.run .icon i {
+  color:     var(--primary);
+  animation: pulse 1s linear infinite;
+}
+
+li.done {
+  color: var(--text);
+}
+li.done .icon i {
+  color: var(--text);
+}
+
+li.fail {
+  color: #f44336;
+}
+li.fail .icon i {
+  color: #f44336;
+}

@@ -1,7 +1,6 @@
 from ..services.audio_service import get_audio_blob
 from ..services.image_service import google_thumbs
 from ..services.openai_svc import tts
-from app.extensions import socketio
 import time as _t
 
 THUMB_CACHE = "thumb"
@@ -18,17 +17,12 @@ def prefetch(anki, caches: dict, card_dict: dict, lang: str) -> None:
     # ---------- thumbnails (URLs only) ----------
     thumbs = google_thumbs(card_dict["keyword"])
     caches[THUMB_CACHE][word] = thumbs
-    socketio.emit("progress",
-                  f"Cached {len(thumbs)} thumbnail URL(s) for “{word}”")
 
     # ---------- audio ----------
     fname, blob = get_audio_blob(lang, word)
     if not blob:
         blob  = tts(word, lang)
         fname = f"{word}.mp3"
-        socketio.emit("progress", "Generated TTS audio")
-    else:
-        socketio.emit("progress", "Fetched audio from Forvo")
 
     caches[AUDIO_BLOB_CACHE][word] = blob or b""
     if blob:

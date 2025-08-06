@@ -19,4 +19,7 @@ def create_app() -> Flask:
     app.caches = caches
     register_blueprints(app)
     socketio.init_app(app)
+
+    from . import socket_handlers
+
     return app

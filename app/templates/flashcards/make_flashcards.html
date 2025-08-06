@@ -11,11 +11,13 @@
   <h1>Flashcard Info</h1>
   <p class="subtitle">Enter Anki your deck name, language, and words here.</p>
 
-  <form  class="flashcard-form"
-         method="post"
-         action="{{ url_for('batch.start') }}"
-         data-ajax
-         data-msg="Creating cards…">
+  {% set sid = sid or random_sid %}
+
+  <form class="flashcard-form"
+      method="post"
+      action="{{ url_for('batch.start', sid=sid) }}"
+      data-ajax
+      data-msg="Preparing flashcards…">
 
     <!-- row 1 : two halves -->
     <label class="half">

@@ -19,7 +19,7 @@ def main() -> None:
         app,
         host="0.0.0.0",
         port=5001,
-        debug=True,               # false for prod
+        # debug=True,               # false for prod
         use_reloader=False        # prevent double-launch
     )
 

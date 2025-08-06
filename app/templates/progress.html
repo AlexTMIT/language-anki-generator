@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block body_class %}loader{% endblock %}
+
+{% block css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/progress.css') }}">
+  <!-- icon font for the bullet / spinner -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<main id="loader" data-sid="{{ sid }}">
+
+  <h1>{{ title }}</h1>
+  <p id="task-label" class="subtitle">{{ subtitle }}</p>
+
+  <!-- per‐step progress bar + stop button + counter -->
+  <div class="bar-wrapper">
+    <span class="pct-left">0%</span>
+    <button id="stop" class="stop-btn"><i class="fa-solid fa-xmark"></i></button>
+    <div class="bar">
+      <div class="fill" style="width:0"></div>
+      <div class="pct">0&nbsp;%</div>
+    </div>
+    <div class="counter"><span id="curr-num">0</span> of <span id="curr-total">{{ tasks|length }}</span></div>
+  </div>
+
+  <!-- task list -->
+  <ul id="tasks">
+    {% for t in tasks %}
+      <li id="{{ t.id }}" data-label="{{ t.label }}" class="idle">
+        <span class="icon"><i class="fa-regular fa-circle"></i></span>
+        <span>{{ t.label }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+
+</main>
+{% endblock %}
+
+{% block js %}
+  <script src="{{ url_for('static', filename='js/progress.js') }}" defer></script>
+{% endblock %}
