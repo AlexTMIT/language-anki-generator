@@ -13,7 +13,7 @@ bp = Blueprint(
 @bp.get("/")
 def make_flashcards():
     decks = current_app.anki.deck_names()
-    sid   = secrets.token_urlsafe(8)          # 12-char room id
+    sid   = secrets.token_urlsafe(8)
     return render_template(
         "flashcards/make_flashcards.html",
         decks=decks,
@@ -24,31 +24,14 @@ def make_flashcards():
 # ─────  NEW loader page  ───────────────────────────────────────────────
 @bp.get("/load")
 def load():
-    sid = request.args.get("sid")   # grab it safely
+    sid = request.args.get("sid")
     if not sid:                          # refresh / bad URL
         return redirect(url_for("flashcards.make_flashcards"))
     workflow = request.args.get("wf", "flashcards")
 
     cfg = {
-      "flashcards": dict(
-          title="Preparing Flashcards",
-          subtitle="Loading time varies by internet speed and length of input.",
-          steps=[
-              ("sanitize",  "Sanitising word list"),
-              ("dupes_imm", "Removing immediate duplicates"),
-              ("json",      "Generating JSON from words"),
-              ("dupes_sub", "Removing subsequent duplicates"),
-              ("prefetch",  "Prefetching media"),
-              ("init_picker","Initiating image selection"),
-          ]),
-      "story": dict(
-          title="Generating Story",
-          subtitle="Turning your deck into a coherent tale…",
-          steps=[
-              ("pick",   "Collecting known words"),
-              ("draft",  "Drafting story"),
-              ("audio",  "Synthesising audio"),
-          ]),
+      "flashcards": load_flashcards_content(),
+      "story": load_story_content(),
     }[workflow]
 
     return render_template(
@@ -58,3 +41,26 @@ def load():
         subtitle = cfg["subtitle"],
         tasks    = [{"id": i, "label": l} for i, l in cfg["steps"]],
     )
+
+def load_story_content():
+    return dict(
+          title="Generating Story",
+          subtitle="Turning your deck into a coherent tale…",
+          steps=[
+              ("pick",   "Fetching known words from Anki"),
+              ("draft",  "Drafting story according to specifications"),
+              ("audio",  "Synthesising audio"),
+          ])
+
+def load_flashcards_content():
+    return dict(
+          title="Preparing Flashcards",
+          subtitle="Loading time varies by internet speed and length of input.",
+          steps=[
+              ("sanitize",  "Sanitising word list"),
+              ("dupes_imm", "Removing immediate duplicates"),
+              ("json",      "Generating JSON from words"),
+              ("dupes_sub", "Removing subsequent duplicates"),
+              ("prefetch",  "Prefetching media"),
+              ("init_picker","Initiating image selection"),
+          ])
