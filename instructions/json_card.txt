@@ -16,7 +16,7 @@ Rules:
 
 1. Split input into headwords.
 2. For each:
-   - Identify {Language} or English input; derive correct {Language} lemma.
+   - Identify {Language} or English input; derive correct {Language} lemma. If a token is surrounded with quotes '"', then do not derive lemmas. Use as is.
    - Assign correct part of speech.
    - Give concise English translation(s).
    - Write idiomatic {Language} sentence (7–15 words, BLC, *wrap focus word*).
