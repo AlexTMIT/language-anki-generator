@@ -1,4 +1,3 @@
-"""Dev entrypoint: launches the Flask-SocketIO server and opens the browser."""
 import sys
 import webbrowser
 from pathlib import Path

@@ -1,4 +1,3 @@
-"""Google CSE image search abstraction."""
 from typing import List
 import requests
 
@@ -22,6 +21,6 @@ def google_thumbs(query: str, k: int = 8) -> List[str]:
         data = res.json()
         return [it["link"] for it in data.get("items", [])][:k]
     except requests.RequestException as err:
-        # keep the app running even if Google CSE flakes out
+        # keep the app running even if Google CSE goes donkey
         print(f"Google CSE request failed: {err}")
         return []

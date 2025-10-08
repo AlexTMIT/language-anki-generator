@@ -2,9 +2,9 @@ import secrets
 from flask import Blueprint, render_template, current_app, request, redirect, url_for
 
 bp = Blueprint(
-    "flashcards",                       # ← endpoint prefix
+    "flashcards",
     __name__,
-    url_prefix="/create",               # /create/… URLs
+    url_prefix="/create",
     template_folder="../../templates/flashcards",
     static_folder="../../static",
 )
@@ -21,7 +21,7 @@ def make_flashcards():
         random_sid=sid,
     )
 
-# ─────  NEW loader page  ───────────────────────────────────────────────
+# ─────  NEW loader page!!!  ───────────────────────────────────────────────
 @bp.get("/load")
 def load():
     sid = request.args.get("sid")
