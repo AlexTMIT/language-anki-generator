@@ -11,7 +11,7 @@
   <h1>Story Mode</h1>
   <p class="subtitle">Make AI write a story using a percentage of the words you know.</p>
 
-  <form class="flashcard-form" method="post" action="#">
+  <form class="flashcard-form" method="post" action="{{ url_for('story.run') }}">
     <label class="half">
       Deck Name
       <select name="deck" required>
