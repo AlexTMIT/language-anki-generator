@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{% block title %}L2 Flashcard Maker{% endblock %}</title>
+
+  <!-- Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- design tokens + page-specific CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/_tokens.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/_buttons.css') }}">  {% block css %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  {% block content %}{% endblock %}
+
+  <!-- shared Socket.IO helpers -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='js/socket.js') }}" defer></script>
+  {% block js %}{% endblock %}
+</body>
+</html>

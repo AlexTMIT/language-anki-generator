@@ -1,4 +1,3 @@
-"""Dev entrypoint: launches the Flask-SocketIO server and opens the browser."""
 import sys
 import webbrowser
 from pathlib import Path
@@ -19,7 +18,7 @@ def main() -> None:
         app,
         host="0.0.0.0",
         port=5001,
-        debug=True,               # false for prod
+        # debug=True,               # false for prod
         use_reloader=False        # prevent double-launch
     )
 

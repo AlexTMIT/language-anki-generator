@@ -16,7 +16,7 @@ def step():
 
     if job is None:
         flash("Import job not found. Please start again.")
-        return redirect(url_for("index.index"))
+        return redirect(url_for("flashcards.make_flashcards"))
 
     cards = job["cards"]
     idx   = job.setdefault("idx", 0)
@@ -52,7 +52,7 @@ def step():
             flash("Done! ✅ All cards processed.")
             # clean up
             current_app.caches["jobs"].pop(sid, None)
-            return redirect(url_for("index.index"))
+            return redirect(url_for("flashcards.make_flashcards"))
 
         return redirect(url_for("picker.step", sid=sid))
 
@@ -77,4 +77,6 @@ def step():
         trans= card.translation,
         gram = card.grammar,
         urls = urls,
+        done = idx,
+        total = len(cards),
     )

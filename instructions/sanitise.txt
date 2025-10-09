@@ -7,6 +7,7 @@ When the user sends any text that may contain {Language}, English, or any langua
     - Do **not** combine standalone phrases like "to run" with the following word (e.g., "яблык") into a single logical unit. Split before and after, so "to run яблык" becomes "to run;яблык".
 - After splitting, trim leading/trailing spaces from every token, and collapse multiple internal spaces within tokens to a single space.
 - Join tokens with a semicolon.  
+- If a word or phrase is surrounded with quotes, as in '"example"', that word or phrase shall be tokenized verbatim. For example, '"ran amok"' shall NOT turn into 'to run amok', but rather '"ran amok"'. Input 'ran amok' without quotes shall still be 'to run amok', though. Keep the quotes in the token!
 - Output **only** the resulting single string as the {Language} lemma (nominative singular for nouns, infinitive for verbs only etc; {Language} only). No quotes, code blocks, or extra text. Just the 'base' form.
 
 # Steps

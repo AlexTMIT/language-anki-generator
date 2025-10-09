@@ -1,40 +1,49 @@
-<!doctype html>
-<title>Choose images – {{ word }}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mini.css@3/dist/mini-default.min.css">
-<link rel="stylesheet" href="{{ url_for('static', filename='picker.css') }}">
-
-<div class="container">
-  <div class="card card-picker">
-    <h4>{{ word }} ({{ trans }}, {{ gram }}) – choose up to 3 images</h4>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose images – {{ word }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/picker.css') }}">
+</head>
+<body>
+  <main class="card-picker">
+    <!-- Word & subtitle -->
+    <h1>{{ word }}</h1>
+    <p class="subtitle">{{ trans }} ({{ gram }}) – choose up to 3 images</p>
 
     <form id="f" method="post" enctype="multipart/form-data" data-msg="Saving note…">
+      <!-- Image grid -->
       <div class="grid" id="grid">
         {% for u in urls %}
           <label>
             <input type="checkbox" name="url" value="{{ u }}" hidden>
-            <img src="{{ u }}">
+            <img src="{{ u }}" alt="">
           </label>
         {% endfor %}
       </div>
 
-      <div class="dropzone" id="dz">
-        ⇧ Drag images here or paste (⌘V / Ctrl-V) ⇧
-        <input type="file" id="file" name="file" multiple accept="image/*" hidden>
-      </div>
+      <!-- Hidden file input for drag/drop & paste -->
+      <input type="file" id="file" name="file" multiple accept="image/*" hidden>
+      <input type="hidden" name="audio_b64" id="audio_b64">
 
-      <div style="display:flex; gap:12px; justify-content:flex-end;">
-        <div class="recorder">
-          <button type="button" id="recBtn" class="contrast">🎤 Record</button>
-          <input type="hidden" name="audio_b64" id="audio_b64">
+      <!-- 3.  PROGRESS + BUTTONS   (only ONE set now) -->
+      <div class="progress-controls">
+        <span class="progress">{{ done }}/{{ total }} words completed</span>
+
+        <div class="controls">
+          <button type="button" id="recBtn" class="btn btn-outline">🎤 Record</button>
+          <button type="submit" name="action" value="skip"  class="btn btn-outline">Skip</button>
+          <button type="submit" name="action" value="keep"  id="btn" class="btn btn-primary" disabled>Save</button>
         </div>
-        <button class="ghost"   type="submit" name="action" value="skip">Skip</button>
-        <button class="primary" type="submit" name="action" value="keep" id="btn" disabled>
-          Continue
-        </button>
       </div>
     </form>
-  </div>
-</div>
+  </main>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script><script src="{{ url_for('static', filename='l2_ui.js') }}"></script>
-<script src="{{ url_for('static', filename='picker.js') }}"></script>
+  <!-- Your socket.io & UI helpers (if used) -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='l2_ui.js') }}"></script>
+
+  <!-- Picker logic -->
+  <script src="{{ url_for('static', filename='js/picker.js') }}" defer></script>
+</body>
+</html>

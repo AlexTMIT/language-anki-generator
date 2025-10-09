@@ -5,7 +5,6 @@ from .extensions import caches, socketio
 from .services.anki_service import AnkiClient
 from .blueprints import register_blueprints
 
-
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_mapping(
@@ -19,4 +18,7 @@ def create_app() -> Flask:
     app.caches = caches
     register_blueprints(app)
     socketio.init_app(app)
+
+    from . import socket_handlers
+
     return app

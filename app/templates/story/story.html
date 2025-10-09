@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Story Mode{% endblock %}
+
+{% block body_class %}flashcards{% endblock %}
+{% block css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Story Mode</h1>
+  <p class="subtitle">Make AI write a story using a percentage of the words you know.</p>
+
+  <form class="flashcard-form" method="post" action="{{ url_for('story.run') }}">
+    <label class="half">
+      Deck Name
+      <select name="deck" required>
+        <option value="" disabled selected>Select your Anki deck…</option>
+        {% for d in decks %}<option>{{ d }}</option>{% endfor %}
+      </select>
+    </label>
+
+    <label class="half">
+      Target Language
+      <select name="lang" required>
+        <option value="" disabled selected>Select your target language…</option>
+        <option value="Belarusian">Belarusian</option>
+        <option value="Danish">Danish</option>
+        <!-- will add more as needed -->
+      </select>
+    </label>
+
+    <label class="half">
+      Number of Known Words
+      <select name="sample_size" required>
+        <option value="" disabled selected>Select a number...</option>
+        {% for n in range(10, 110, 10) %}
+          <option value="{{ n }}">{{ n }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="half">
+      Topic
+      <textarea class="rows-1" name="topic" placeholder="Write a topic for the story…" rows="1"></textarea>
+    </label>
+
+    <div class="btn-row full">
+      <a class="btn btn-outline" href="{{ url_for('site.landing') }}">Back</a>
+      <button type="submit" class="btn btn-primary">Continue</button>
+    </div>
+  </form>
+</main>
+{% endblock %}

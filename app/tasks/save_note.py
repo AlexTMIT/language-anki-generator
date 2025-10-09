@@ -81,7 +81,11 @@ def _process_images(
     for name, data in uploads:
         if len(img_tags) >= 3:
             break
-        if data[:2] == b"\xFF\xD8":                   # JPEG magic validation
+        if (
+            data.startswith(b"\xFF\xD8")   # JPEG
+            or data.startswith(b"\x89PNG")  # PNG
+            or data.startswith(b"GIF")      # GIF
+        ):
             ext = Path(name).suffix or ".jpg"
             _stage_image(actions, img_tags, data, ext)
 

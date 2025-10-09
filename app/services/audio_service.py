@@ -1,4 +1,3 @@
-"""Forvo-based audio retrieval with basic mastering."""
 from __future__ import annotations
 import tempfile
 from pathlib import Path
@@ -14,7 +13,6 @@ FORVO_URL = (
     "action/word-pronunciations/word/{word}/language/{lang}"
 )
 
-# Processing constants
 GAP_MS = 300
 HPF_CUTOFF_HZ = 100
 LPF_CUTOFF_HZ = 7500

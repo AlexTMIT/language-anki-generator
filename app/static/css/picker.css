@@ -1,0 +1,120 @@
+/* ----------  GLOBAL THEME  ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --thumb: 180px;                 /* size of each thumbnail */
+  --primary:#5744EE;
+  --bg:#0E0F14;
+  --border:#2a2d37;
+  --text:#FFFFFF;
+  --text-dim:#8F929E;
+  --radius:12px;
+  --unit:8px;
+  --space-1: calc(var(--unit) * 1);
+  --space-2: calc(var(--unit) * 2);
+  --space-3: calc(var(--unit) * 3);
+  --space-4: calc(var(--unit) * 4);
+  --fast:100ms ease;
+}
+
+*,*::before,*::after{box-sizing:border-box;}
+html,body{
+  height:100%;margin:0;
+  font-family:"Inter",sans-serif;
+  background:var(--bg);color:var(--text);
+}
+
+/* ----------  WRAPPER  ---------- */
+.card-picker{
+  width: min(100%, 1000px);   /* stay ≤1000px so margin:auto works */
+  margin: calc(var(--unit)*8) auto 0;  /* ~64 px top margin */
+  padding:var(--space-4);
+  display:flex;
+  flex-direction:column;
+  align-items:center;  
+  gap:var(--space-3);
+}
+
+.card-picker h1{
+  font-size:2.6rem;
+  font-weight:600;
+  margin:0;
+  text-align:center;
+}
+.card-picker .subtitle{
+  font-size:1rem;
+  color:var(--text-dim);
+  text-align:center;
+  margin:0;
+}
+
+/* ----------  MASONRY GRID  ---------- */
+.grid{
+  column-count:4;
+  column-gap:var(--space-2);
+  margin-top:var(--space-3);
+}
+.grid label{
+  display:inline-block;
+  width:100%;
+  margin-bottom:var(--space-2);
+  break-inside:avoid-column;
+}
+.grid input{display:none;}
+.grid img{
+  width:100%;
+  height:auto;
+  border:2px solid transparent;
+  border-radius:var(--radius);
+  display:block;
+  transition:transform var(--fast),border-color var(--fast);
+}
+.grid img:hover{transform:scale(1.03);}
+.grid img.sel{border:2px solid var(--primary);}
+
+/* ----------  PROGRESS + CONTROLS  ---------- */
+.progress-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-top: var(--space-3);
+}
+
+.controls {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* ----------  BUTTONS  ---------- */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.95rem;
+  font-weight:500;
+  padding:.85rem 2.1rem;
+  border-radius:var(--radius);
+  cursor:pointer;
+  border:1px solid transparent;
+  transition:background var(--fast),color var(--fast),border var(--fast);
+}
+.btn-outline{
+  background:transparent;
+  color:var(--text);
+  border-color:var(--border);
+}
+.btn-outline:hover{
+  color:var(--primary);
+  border-color:var(--primary);
+}
+.btn-primary{
+  background:var(--primary);
+  color:#fff;
+}
+.btn-primary:hover{
+  background:transparent;
+  color:var(--primary);
+  border-color:var(--primary);
+}
+.btn[disabled]{opacity:.45;pointer-events:none;}

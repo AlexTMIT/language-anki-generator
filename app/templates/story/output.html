@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Story Output{% endblock %}
+
+{% block body_class %}flashcards{% endblock %}
+{% block css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/story.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="story-wrap">
+  <h1>Story Output</h1>
+  <p class="subtitle">Your story is made up of ~{{ coverage_pct }}% of your known words. Click words to look up definitions (TODO).</p>
+
+  <div class="story-card" id="storyCard">
+    {{ story_html | safe }}
+  </div>
+
+  <div class="btn-row" style="margin-top: var(--space-3);">
+    <a class="btn btn-outline" href="{{ url_for('story.index') }}">Back</a>
+    <button class="btn btn-outline" type="button" id="js-toggle-known">Toggle Known</button>
+    <form method="post" action="{{ url_for('story.run') }}" style="display:inline">
+      <input type="hidden" name="deck" value="{{ deck }}">
+      <input type="hidden" name="lang" value="{{ lang }}">
+      <input type="hidden" name="topic" value="{{ topic }}">
+      <input type="hidden" name="sample_size" value="{{ sample_size }}">
+      <button class="btn btn-primary" type="submit">Regenerate</button>
+    </form>
+  </div>
+</main>
+{% endblock %}
+
+{% block js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const card = document.getElementById('storyCard');
+    const btn  = document.getElementById('js-toggle-known');
+    if (!card || !btn) return;
+    btn.addEventListener('click', () => {
+      card.classList.toggle('is-highlighted');
+    });
+  });
+</script>
+{% endblock %}

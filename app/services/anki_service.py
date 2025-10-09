@@ -123,3 +123,68 @@ class AnkiClient:
         out = self._rpc("multi", actions=actions)
         print("[ANKI] multi result:", out)
         return out
+
+    # get words from a deck
+    def find_notes(self, deck: str) -> list[int]:
+        return self._rpc("findNotes", query=f'deck:"{deck}"')
+
+    def notes_info(self, note_ids: list[int]) -> list[dict]:
+        if not note_ids:
+            return []
+        return self._rpc("notesInfo", notes=note_ids)
+
+    def _extract_words_from_notes(
+        self,
+        notes: list[dict],
+        field_priority: tuple[str, ...] = ("Word", "Expression", "Front", "Back", "Term"),
+    ) -> list[str]:
+        out: list[str] = []
+        for n in notes or []:
+            fields = (n.get("fields") or {})
+            for fld in field_priority:
+                cell = fields.get(fld)
+                if cell:
+                    v = (cell.get("value") or "").strip()
+                    if v:
+                        out.append(v)
+                        break
+
+        # case-insensitive de-dup
+        seen, uniq = set(), []
+        for w in out:
+            lw = w.lower()
+            if lw not in seen:
+                seen.add(lw)
+                uniq.append(w)
+        return uniq
+
+    def get_words(
+        self,
+        deck: str,
+        field_priority: tuple[str, ...] = ("Word", "Expression", "Front", "Back", "Term"),
+    ) -> list[str]:
+        t0 = time.perf_counter()
+        note_ids = self.find_notes(deck)
+        notes = self.notes_info(note_ids)
+        words = self._extract_words_from_notes(notes, field_priority)
+        print(f"[ANKI] get_words: deck='{deck}', notes={len(notes)}, words={len(words)}, took={time.perf_counter()-t0:.2f}s")
+        return words
+
+    def get_seen_note_ids(self, deck: str) -> list[int]:
+        card_ids = self._rpc("findCards", query=f'deck:"{deck}" -is:new')
+        if not card_ids:
+            return []
+        cards = self._rpc("cardsInfo", cards=card_ids)
+        return list({c["note"] for c in cards})  # dedupe notes
+
+    def get_seen_words(
+        self,
+        deck: str,
+        field_priority: tuple[str, ...] = ("Word", "Expression", "Front", "Back", "Term"),
+    ) -> list[str]:
+        t0 = time.perf_counter()
+        note_ids = self.get_seen_note_ids(deck)
+        notes = self.notes_info(note_ids) if note_ids else []
+        words = self._extract_words_from_notes(notes, field_priority)
+        print(f"[ANKI] get_seen_words: deck='{deck}', notes={len(notes)}, words={len(words)}, took={time.perf_counter()-t0:.2f}s")
+        return words
