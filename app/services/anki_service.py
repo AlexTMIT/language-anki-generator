@@ -123,3 +123,46 @@ class AnkiClient:
         out = self._rpc("multi", actions=actions)
         print("[ANKI] multi result:", out)
         return out
+
+    # get words from a deck
+    def find_notes(self, deck: str) -> list[int]:
+        return self._rpc("findNotes", query=f'deck:"{deck}"')
+
+    def notes_info(self, note_ids: list[int]) -> list[dict]:
+        if not note_ids:
+            return []
+        return self._rpc("notesInfo", notes=note_ids)
+
+    def get_words(
+        self,
+        deck: str,
+        field_priority: tuple[str, ...] = ("Word", "Expression", "Front", "Back", "Term"),
+    ) -> list[str]:
+        t0 = time.perf_counter()
+        note_ids = self.find_notes(deck)
+        notes = self.notes_info(note_ids)
+
+        out: list[str] = []
+        for n in notes:
+            fields = (n.get("fields") or {})
+            val = None
+            for fld in field_priority:
+                cell = fields.get(fld)
+                if cell:
+                    v = (cell.get("value") or "").strip()
+                    if v:
+                        val = v
+                        break
+            if val:
+                out.append(val)
+
+        # de-dupe, case-insensitive
+        seen, uniq = set(), []
+        for w in out:
+            lw = w.lower()
+            if lw not in seen:
+                seen.add(lw)
+                uniq.append(w)
+
+        print(f"[ANKI] get_words: deck='{deck}', notes={len(notes)}, words={len(uniq)}, took={time.perf_counter()-t0:.2f}s")
+        return uniq
