@@ -54,17 +54,16 @@ class StoryService:
         lang: str,
         topic: str,
         required_words: Iterable[str],
-        target_pct: int,
     ) -> Tuple[str, Set[str]]:
         t0 = time.perf_counter()
         req_list = list(required_words)
         self._log(
             f"generate_story: calling model with req_words={len(req_list)}, "
-            f"target_pct={target_pct}, lang='{lang}', topic='{topic}'"
+            f"lang='{lang}', topic='{topic}'"
         )
 
         story = self.story_ai.generate_story_text(
-            lang=lang, topic=topic, required_words=req_list, target_pct=target_pct
+            lang=lang, topic=topic, required_words=req_list
         )
         self._log(f"generate_story: model returned {len(story)} chars in {time.perf_counter() - t0:.2f}s")
         self._log(f"Returned text: {story}")
