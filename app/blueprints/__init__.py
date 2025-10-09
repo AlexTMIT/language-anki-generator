@@ -4,6 +4,7 @@ from .flashcards.routes import bp as flashcards_bp
 from .batch            import bp as batch_bp
 from .picker           import bp as picker_bp
 from .story.routes import bp as story_bp
+from .quiz.routes      import bp as quiz_bp
 
 def register_blueprints(app: Flask) -> None:
     app.register_blueprint(site_bp)
@@ -11,3 +12,4 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(batch_bp)
     app.register_blueprint(picker_bp)
     app.register_blueprint(story_bp)
+    app.register_blueprint(quiz_bp)
