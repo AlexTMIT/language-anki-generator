@@ -23,7 +23,7 @@ class StoryService:
 
     def pick_known_words(self, *, deck: str, sample_size: int, lang: str) -> List[str]:
         t0 = time.perf_counter()
-        words = self.anki.get_words(deck)
+        words = self.anki.get_seen_words(deck)
 
         # normalize + dedupe
         seen, pool = set(), []
