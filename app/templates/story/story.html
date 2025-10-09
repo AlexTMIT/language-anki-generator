@@ -31,11 +31,11 @@
     </label>
 
     <label class="half">
-      Desired % Known Words
-      <select name="known_pct" required>
-        <option value="" disabled selected>~80% recommended…</option>
-        {% for p in range(10, 100, 10) %}
-          <option value="{{ p }}">{{ p }}%</option>
+      Number of Known Words
+      <select name="sample_size" required>
+        <option value="" disabled selected>Select a number...</option>
+        {% for n in range(10, 110, 10) %}
+          <option value="{{ n }}">{{ n }}</option>
         {% endfor %}
       </select>
     </label>
