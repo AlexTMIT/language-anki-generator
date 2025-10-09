@@ -5,7 +5,7 @@ from app.extensions import socketio
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-MODEL = "gpt-4.1"
+MODEL = "gpt-4.1-mini"
 TEMP  = 0.6
 
 def _push(msg: str) -> None:
@@ -22,17 +22,14 @@ def generate_story_text(*, lang: str, topic: str,
         "Write in grammatically correct, natural-sounding {lang} with authentic phrasing and register."
     ).replace("{lang}", lang)
     user = (
-        f"Write a short story in {lang} about '{topic}'. Be creative, but stay coherent and on-topic.\n"
-        f"Make natural, heavy use of the following {len(req)} known words, sprinkled across the story:\n"
+        f"Write a short, natural-sounding story in {lang} about: {topic}.\n"
+        f"Use the following {len(req)} known words throughout the story (inflect or conjugate naturally):\n"
         f"{', '.join(req)}\n"
-        "Whenever you use a word from the list (any inflected/surface form of that word), "
-        "wrap the exact surface form with curly braces, e.g., {løber}.\n"
-        "Do NOT put braces around punctuation or spaces. Braces must enclose just the word.\n"
-        "Use braces consistently for every occurrence of a listed word.\n"
-        "It is imperative that the story is grammatically correct.\n"
-        "Make the story around 200 words long with paragraphs.\n"
-        "Try to use all words given to you.\n"
-        "Return ONLY the story text.\n"
+        "Wrap every occurrence of these words with { }, e.g. {løber}. "
+        "Only wrap the word itself — no spaces or punctuation.\n"
+        "Use all words at least once where possible. Grammar must be correct.\n"
+        "Length: ~200 words. Use multiple paragraphs separated by blank lines.\n"
+        "Return ONLY the story text."
     )
 
     resp = client.chat.completions.create(
