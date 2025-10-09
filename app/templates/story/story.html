@@ -11,7 +11,7 @@
   <h1>Story Mode</h1>
   <p class="subtitle">Make AI write a story using a percentage of the words you know.</p>
 
-  <form class="flashcard-form" method="post" action="#">
+  <form class="flashcard-form" method="post" action="{{ url_for('story.run') }}">
     <label class="half">
       Deck Name
       <select name="deck" required>
@@ -31,11 +31,11 @@
     </label>
 
     <label class="half">
-      Desired % Known Words
-      <select name="known_pct" required>
-        <option value="" disabled selected>~80% recommended…</option>
-        {% for p in range(10, 100, 10) %}
-          <option value="{{ p }}">{{ p }}%</option>
+      Number of Known Words
+      <select name="sample_size" required>
+        <option value="" disabled selected>Select a number...</option>
+        {% for n in range(10, 110, 10) %}
+          <option value="{{ n }}">{{ n }}</option>
         {% endfor %}
       </select>
     </label>
