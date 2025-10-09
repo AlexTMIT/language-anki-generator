@@ -4,7 +4,7 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-MODEL = "gpt-4o"
+MODEL = "gpt-4o-mini-2024-07-18"
 TEMP  = 0.6
 
 def _call(messages, max_tokens=900, temperature=TEMP):
@@ -26,17 +26,50 @@ def _pjson(s:str):
     try: return json.loads(s)
     except Exception as e: raise RuntimeError(f"AI JSON parse error: {e}\nRAW: {s[:400]}...")
 
-def gen_vocab_quiz(*, lang:str, level:str, known_words:List[str], n:int) -> list:
+def gen_vocab_quiz(*, lang: str, level: str, known_words: List[str], n: int) -> list:
     sys = _sys(lang)
     user = (
-        f"CEFR level: {level}. Create {n} multiple-choice vocabulary questions in {lang}.\n"
-        "Use ONLY the provided known words for targets and to craft plausible distractors:\n"
-        f"{', '.join(known_words)}\n"
-        'Each item format: {"kind":"vocab","prompt":"...","choices":["A","B","C","D"],"answer":"B","extra":{"explanation":"..."}}.\n'
-        "Return a JSON array of items."
+        f"CEFR {level}. Create a vocabulary quiz in {lang} with EXACTLY {n} questions.\n"
+        "Use ONLY these known words across prompts/answers/distractors (each at least once overall):\n"
+        f"{', '.join(known_words)}\n\n"
+        "Question types (ALL must appear):\n"
+        "- mc        : 4-choice meaning/definition\n"
+        "- translate : short translation (free text)\n"
+        "- cloze     : sentence with one blank '____' testing inflection/conjugation\n\n"
+        "Return ONE JSON object ONLY, no code fences, no comments, no extra keys:\n"
+        "{"
+        "\"kind\":\"vocab\","
+        f"\"q_amount\":{n},"
+        "\"questions\":["
+            "{\"type\":\"mc\",\"prompt\":\"...\",\"choices\":[\"...\",\"...\",\"...\",\"...\"],\"answer\":\"...\",\"explanation\":\"...\"},"
+            "{\"type\":\"translate\",\"prompt\":\"...\",\"answer\":\"...\",\"explanation\":\"...\"},"
+            "{\"type\":\"cloze\",\"prompt\":\"Sentence with ____\",\"answer\":\"...\",\"explanation\":\"...\"}"
+        "]"
+        "}\n"
+        "Rules: choices are plain strings (no labels like 'A:'), exactly 4 choices for mc, "
+        "brief explanations, correct JSON only."
     )
-    raw, _ = _call([{"role":"system","content":sys},{"role":"user","content":user}], max_tokens=800)
-    return _pjson(raw)
+
+    raw, _ = _call([{"role":"system","content":sys},{"role":"user","content":user}], max_tokens=1400)
+    obj = json.loads(raw)
+    questions = obj.get("questions")
+
+    norm = []
+    for q in questions:
+        qtype = q.get("type")
+        prompt = q.get("prompt", "")
+        answer = q.get("answer", "")
+        explanation = (q.get("explanation") or "")
+        choices = q.get("choices") if qtype == "mc" else None
+        norm.append({
+            "type": qtype,
+            "prompt": prompt,
+            "choices": choices,
+            "answer": answer,
+            "extra": {"explanation": explanation}
+        })
+
+    return norm
 
 def gen_reading_quiz(*, lang:str, level:str, n:int, words:int=100) -> Tuple[str, list]:
     sys = _sys(lang)

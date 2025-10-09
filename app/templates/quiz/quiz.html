@@ -11,7 +11,7 @@
   <h1>Quiz Mode</h1>
   <p class="subtitle">Take a quiz to test the application of your vocabulary.</p>
 
-  <form class="flashcard-form" method="post" action="#">
+  <form class="flashcard-form" method="post" action="{{ url_for('quiz.start') }}">
     <label class="half">
       Deck Name
       <select name="deck" required>
@@ -47,7 +47,6 @@
         <option value="vocab">Vocabulary Practice</option>
         <option value="reading">Reading Comprehension</option>
         <option value="listening">Listening Comprehension</option>
-        <option value="morph">Conjugation &amp; Inflection</option>
         <option value="translate">Translation (L1↔L2)</option>
       </select>
     </label>
