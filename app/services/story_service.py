@@ -82,16 +82,15 @@ class StoryService:
         for m in BRACED_RE.finditer(story_text_with_braces):
             covered_tokens += len(TOKEN_RE.findall(m.group(1)))
 
-        # remove braces and wrap for display
-        def replacer(m: re.Match) -> str:
-            inner = m.group(1)
-            return f'<span class="known">{inner}</span>'
-
-        html = BRACED_RE.sub(replacer, story_text_with_braces)
-
-        # compute total tokens
         plain_text = BRACED_RE.sub(lambda m: m.group(1), story_text_with_braces)
         total_tokens = max(1, len(TOKEN_RE.findall(plain_text)))
+
+        raw_paragraphs = [_p.strip() for _p in re.split(r"\n\s*\n", story_text_with_braces.strip()) if _p.strip()]
+
+        def _replacer(m: re.Match) -> str:
+            return f'<span class="known">{m.group(1)}</span>'
+        html_paragraphs = [BRACED_RE.sub(_replacer, p) for p in raw_paragraphs]
+        html = "".join(f"<p>{p}</p>" for p in html_paragraphs)
 
         coverage = round(100 * covered_tokens / total_tokens)
 
