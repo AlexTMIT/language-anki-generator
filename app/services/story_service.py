@@ -21,12 +21,11 @@ class StoryService:
     def _words_in_text(self, text: str) -> Set[str]:
         return {t.lower() for t in TOKEN_RE.findall(text)}
 
-    def pick_known_words(self, *, deck: str, target_pct: int, lang: str) -> List[str]:
+    def pick_known_words(self, *, deck: str, sample_size: int, lang: str) -> List[str]:
         t0 = time.perf_counter()
-        words: List[str] = []
         words = self.anki.get_words(deck)
 
-        # normalize, dedupe
+        # normalize + dedupe
         seen, pool = set(), []
         for w in words:
             w = (w or "").strip()
@@ -36,20 +35,16 @@ class StoryService:
                 pool.append(w)
 
         random.shuffle(pool)
-        sample_size = min(80, max(20, len(pool) // 5))  # 20 to 80 words
+        sample_size = min(sample_size, len(pool))
         sample = pool[:sample_size]
 
-        took = time.perf_counter() - t0
         self._log(
             f"pick_known_words: raw={len(words)}, dedup={len(pool)}, "
-            f"sample_size={sample_size}, took={took:.2f}s (deck='{deck}', lang='{lang}')"
+            f"requested_sample={sample_size}, took={time.perf_counter()-t0:.2f}s"
         )
 
         if not sample:
-            raise RuntimeError(
-                "No words found in the selected deck. "
-                "Verify deck name and field mapping (Word/Expression/Front/Back/Term)."
-            )
+            raise RuntimeError("No words found in the selected deck.")
 
         return sample
 
