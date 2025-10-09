@@ -5,8 +5,8 @@ from app.extensions import socketio
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-MODEL = "gpt-4.1-mini"
-TEMP  = 0.8
+MODEL = "gpt-4.1"
+TEMP  = 0.6
 
 def _push(msg: str) -> None:
     socketio.emit("progress", msg)
@@ -27,7 +27,7 @@ def generate_story_text(*, lang: str, topic: str,
         "Do NOT put braces around punctuation or spaces. Braces must enclose just the word.\n"
         "Use braces consistently for every occurrence of a listed word.\n"
         "It is imperative that the story is grammatically correct.\n"
-        "Make the story around 300 words long with paragraphs.\n"
+        "Make the story around 200 words long with paragraphs.\n"
         "Try to use all words given to you.\n"
         "Return ONLY the story text.\n"
     )
