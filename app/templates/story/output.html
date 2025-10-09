@@ -12,14 +12,27 @@
   <h1>Story Output</h1>
   <p class="subtitle">Your story is made up of ~{{ coverage_pct }}% of your known words. Click words to look up definitions (TODO).</p>
 
-  <div class="story-card">
+  <div class="story-card" id="storyCard">
     {{ story_html | safe }}
   </div>
 
   <div class="btn-row" style="margin-top: var(--space-3);">
     <a class="btn btn-outline" href="{{ url_for('story.index') }}">Back</a>
-    <button class="btn btn-outline" type="button" disabled>Toggle Known</button>
+    <button class="btn btn-outline" type="button" id="js-toggle-known">Toggle Known</button>
     <button class="btn btn-primary" type="button" disabled>Regenerate</button>
   </div>
 </main>
+{% endblock %}
+
+{% block js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const card = document.getElementById('storyCard');
+    const btn  = document.getElementById('js-toggle-known');
+    if (!card || !btn) return;
+    btn.addEventListener('click', () => {
+      card.classList.toggle('is-highlighted');
+    });
+  });
+</script>
 {% endblock %}
