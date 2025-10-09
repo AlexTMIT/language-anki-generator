@@ -5,6 +5,7 @@ import random
 from typing import Iterable, List, Set, Tuple
 
 TOKEN_RE = re.compile(r"[A-Za-zÀ-ÿĀ-žА-Яа-яЁёİıŞşĞğČčŠšŽžÑñÜüÖöÄäß’'-]+", re.U)
+BRACED_RE  = re.compile(r"\{([^{}\s][^{}]*?)\}") # captures {word} without spaces
 
 
 class StoryService:
@@ -67,37 +68,41 @@ class StoryService:
             f"target_pct={target_pct}, lang='{lang}', topic='{topic}'"
         )
 
-        text = self.story_ai.generate_story_text(
+        story = self.story_ai.generate_story_text(
             lang=lang, topic=topic, required_words=req_list, target_pct=target_pct
         )
-        self._log(f"generate_story: model returned {len(text)} chars in {time.perf_counter() - t0:.2f}s")
+        self._log(f"generate_story: model returned {len(story)} chars in {time.perf_counter() - t0:.2f}s")
+        self._log(f"Returned text: {story}")
 
-        used_tokens = self._words_in_text(text)
-        req_set = set(req_list)
-        used_req = {w for w in req_set if w.lower() in used_tokens}
-        self._log(f"generate_story: used_required={len(used_req)} / {len(req_set)} matched in story")
+        # extract {wrapped} forms 
+        wrapped_forms = [m.group(1) for m in BRACED_RE.finditer(story)]
+        used_exact_set = set(wrapped_forms)
+        self._log(f"generate_story: wrapped_known_forms={len(used_exact_set)}")
 
-        return text, used_req
+        return story, used_exact_set
 
-    def highlight_story(self, story_text: str, known_used: Iterable[str]) -> Tuple[str, int]:
+    def highlight_story(self, story_text_with_braces: str, known_used_exact: Iterable[str]) -> Tuple[str, int]:
         t0 = time.perf_counter()
-        known = {w.lower() for w in known_used}
 
-        tokens = TOKEN_RE.findall(story_text)
-        total = max(1, len(tokens))
-        covered = sum(1 for t in tokens if t.lower() in known)
-        pct = round(100 * covered / total)
+        covered_tokens = 0
+        for m in BRACED_RE.finditer(story_text_with_braces):
+            covered_tokens += len(TOKEN_RE.findall(m.group(1)))
 
-        def repl(m: re.Match) -> str:
-            tok = m.group(0)
-            return f'<span class="known">{tok}</span>' if tok.lower() in known else tok
+        # remove braces and wrap for display
+        def replacer(m: re.Match) -> str:
+            inner = m.group(1)
+            return f'<span class="known">{inner}</span>'
 
-        html = TOKEN_RE.sub(repl, story_text)
-        # paragraphize
-        html = "<p>" + "</p><p>".join(s.strip() for s in html.split("\n") if s.strip()) + "</p>"
+        html = BRACED_RE.sub(replacer, story_text_with_braces)
+
+        # compute total tokens
+        plain_text = BRACED_RE.sub(lambda m: m.group(1), story_text_with_braces)
+        total_tokens = max(1, len(TOKEN_RE.findall(plain_text)))
+
+        coverage = round(100 * covered_tokens / total_tokens)
 
         self._log(
-            f"highlight_story: tokens={total}, covered={covered}, coverage={pct}%, "
-            f"took={time.perf_counter() - t0:.2f}s"
+            f"highlight_story: tokens_total={total_tokens}, tokens_covered={covered_tokens}, "
+            f"coverage={coverage}%, took={time.perf_counter() - t0:.2f}s"
         )
-        return html, pct
+        return html, coverage
