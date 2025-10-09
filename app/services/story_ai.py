@@ -17,10 +17,13 @@ def generate_story_text(*, lang: str, topic: str,
     _push("Generating story…")
     t0 = time.time()
 
-    system = "You are a helpful storyteller."
+    system = (
+        "You are a native, idiomatic storyteller and language tutor. "
+        "Write in grammatically correct, natural-sounding {lang} with authentic phrasing and register."
+    ).replace("{lang}", lang)
     user = (
-        f"Write a short story in {lang} about '{topic}'. Be creative, but stick to the topic.\n"
-        f"The story should make heavy use of the following {len(req)} known words, sprinkling them naturally throughout the story:\n"
+        f"Write a short story in {lang} about '{topic}'. Be creative, but stay coherent and on-topic.\n"
+        f"Make natural, heavy use of the following {len(req)} known words, sprinkled across the story:\n"
         f"{', '.join(req)}\n"
         "Whenever you use a word from the list (any inflected/surface form of that word), "
         "wrap the exact surface form with curly braces, e.g., {løber}.\n"
