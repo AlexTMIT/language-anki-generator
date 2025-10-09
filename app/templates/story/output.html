@@ -19,7 +19,13 @@
   <div class="btn-row" style="margin-top: var(--space-3);">
     <a class="btn btn-outline" href="{{ url_for('story.index') }}">Back</a>
     <button class="btn btn-outline" type="button" id="js-toggle-known">Toggle Known</button>
-    <button class="btn btn-primary" type="button" disabled>Regenerate</button>
+    <form method="post" action="{{ url_for('story.run') }}" style="display:inline">
+      <input type="hidden" name="deck" value="{{ deck }}">
+      <input type="hidden" name="lang" value="{{ lang }}">
+      <input type="hidden" name="topic" value="{{ topic }}">
+      <input type="hidden" name="sample_size" value="{{ sample_size }}">
+      <button class="btn btn-primary" type="submit">Regenerate</button>
+    </form>
   </div>
 </main>
 {% endblock %}

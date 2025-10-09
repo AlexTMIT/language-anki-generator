@@ -32,4 +32,4 @@ def run():
 
     return render_template("story/output.html",
                            story_html=html, coverage_pct=coverage,
-                           deck=deck, lang=lang, topic=topic)
+                           deck=deck, lang=lang, topic=topic, sample_size=sample_size)
