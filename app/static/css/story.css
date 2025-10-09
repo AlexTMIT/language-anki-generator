@@ -13,11 +13,18 @@
     background:rgba(255,255,255,.02);
     border:1px solid var(--border);
     border-radius:var(--radius);
-    padding:var(--space-3)
+    padding:var(--space-3);
+    max-height:60vh;
+    overflow:auto;
 }
 
-.known {
-    color:var(--primary);
-    text-decoration:underline;
-    cursor:pointer
+.story-card .known{
+  color:inherit;
+  text-decoration:none;
+}
+
+.story-card.is-highlighted .known{
+  color:var(--primary);
+  text-decoration:underline;
+  cursor:pointer;
 }
