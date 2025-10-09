@@ -21,13 +21,13 @@ def generate_story_text(*, lang: str, topic: str,
     system = "You are a helpful storyteller."
     user = (
         f"Write a short story in {lang} about '{topic}'. Be creative, but stick to the topic.\n"
-        f"The story should be made up of {target_pct}% of these user-known words (sprinkle naturally; repetition allowed):\n"
-        f"{', '.join(req)}\n\n"
-        f"The story should seamlessly incorporate these words without forcing them.\n"
-        f"If the story has 100 words, {target_pct} words should be from this list.\n"
-        f"You do not HAVE to use all words as long as the story meets the requirements.\n"
-        f"If the user does not provide enough known words, the story may not meet the desired percentage, which is, then, fine.\n"
-        "Return only the story text—no commentary, no translations."
+        f"The story should be made up of {target_pct}% of these user-known words (sprinkle naturally; repetition allowed).\n"
+        "Whenever you use a word from the list (any inflected/surface form of that word), "
+        "wrap the exact surface form with curly braces, e.g., {løber}.\n"
+        "Only wrap words that originate from the list. Do NOT wrap any other words.\n"
+        "Do NOT put braces around punctuation or spaces. Braces must enclose just the word.\n"
+        "Use braces consistently for every occurrence of a listed word.\n"
+        "Return ONLY the story text.\n"
     )
 
     resp = client.chat.completions.create(
