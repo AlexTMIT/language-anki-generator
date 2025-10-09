@@ -24,10 +24,15 @@ def run():
         flash("Please complete all fields.", "error")
         return redirect(url_for("story.index"))
 
-    svc = StoryService(anki=current_app.anki, story_ai=story_ai)
+    svc = StoryService(anki=current_app.anki, story_ai=story_ai, debug=True)
 
     pct = int(known_pct)
-    selected = svc.pick_known_words(deck=deck, target_pct=pct, lang=lang)
+    try:
+        selected = svc.pick_known_words(deck=deck, target_pct=pct, lang=lang)
+    except Exception as e:
+        flash(str(e), "error")
+        return redirect(url_for("story.index"))
+    
     text, used = svc.generate_story(lang=lang, topic=topic, required_words=selected, target_pct=pct)
     html, coverage = svc.highlight_story(text, used)
 
