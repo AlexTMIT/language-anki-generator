@@ -17,23 +17,17 @@ def index():
 def run():
     deck = request.form.get("deck", "").strip()
     lang = request.form.get("lang", "").strip()
-    known_pct = request.form.get("known_pct", "").strip()
+    sample_size = int(request.form.get("sample_size", "0").strip() or 0)
     topic = request.form.get("topic", "").strip()
 
-    if not (deck and lang and known_pct and topic):
+    if not (deck and lang and sample_size and topic):
         flash("Please complete all fields.", "error")
         return redirect(url_for("story.index"))
 
     svc = StoryService(anki=current_app.anki, story_ai=story_ai, debug=True)
 
-    pct = int(known_pct)
-    try:
-        selected = svc.pick_known_words(deck=deck, target_pct=pct, lang=lang)
-    except Exception as e:
-        flash(str(e), "error")
-        return redirect(url_for("story.index"))
-    
-    text, used = svc.generate_story(lang=lang, topic=topic, required_words=selected, target_pct=pct)
+    selected = svc.pick_known_words(deck=deck, sample_size=sample_size, lang=lang)
+    text, used = svc.generate_story(lang=lang, topic=topic, required_words=selected)
     html, coverage = svc.highlight_story(text, used)
 
     return render_template("story/output.html",
