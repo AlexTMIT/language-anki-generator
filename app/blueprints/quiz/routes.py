@@ -68,24 +68,37 @@ def grade():
         return redirect(url_for("quiz.index"))
 
     # merge for display
-    rows, correct = [], 0
+    rows = []
+    correct_count = 0
+
     for i, (it, ans, v) in enumerate(zip(items, user_answers, verdicts), start=1):
-        ok = bool(v.get("ok"))
-        if ok: correct += 1
+        ok = bool(v and v.get("ok"))
+        if ok:
+            correct_count += 1
+
+        canonical = (
+            (v.get("canonical") if v else None) or
+            it.get("answer") or
+            (it.get("lemma") if it.get("type") == "cloze" else "") or
+            "—"
+        )
+
         rows.append({
             "n": i,
-            "prompt": it["prompt"],
+            "prompt": it.get("prompt", ""),
             "choices": it.get("choices"),
-            "user": ans,
-            "answer": v.get("canonical",""),
+            "user": ans or "—",
+            "answer": canonical,
             "ok": ok,
-            "explanation": v.get("explanation",""),
+            "explanation": (v.get("explanation", "") if not ok else ""),
         })
 
-    score = f"{correct} / {len(items)}"
+    total = max(1, len(items))
+    score_text = f"{correct_count} / {total}"
+
     return render_template(
         "quiz/vocab_results.html",
         title="Quiz: Vocabulary Practice",
         rows=rows,
-        score=score
+        score=score_text,
     )

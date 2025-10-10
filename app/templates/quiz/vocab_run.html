@@ -18,20 +18,41 @@
       <section class="qblock">
         <div class="qnum">Q{{ loop.index }}.</div>
         <div class="qbody">
-          <div class="qprompt">{{ it.prompt|safe }}</div>
 
-          {% if it.choices %}
-            <div class="choices">
-              {% for c in it.choices %}
-                <label class="choice">
-                  <input type="radio" name="{{ qname }}" value="{{ c }}">
-                  <span>{{ c }}</span>
-                </label>
-              {% endfor %}
-            </div>
+          {% if qtype == 'cloze' %}
+            {% if it.lemma %}
+              <div class="qhint"><strong>Inflect/conjugate:</strong> <em>{{ it.lemma }}</em></div>
+            {% endif %}
+            <div class="qprompt">{{ it.prompt|safe }}</div>
+            <input
+              class="text-answer"
+              name="{{ qname }}"
+              type="text"
+              placeholder="Type the correct form…"
+              autocomplete="off">
+          
           {% else %}
-            <input class="text-answer" name="{{ qname }}" type="text" placeholder="Type here..." autocomplete="off">
+            <div class="qprompt">{{ it.prompt|safe }}</div>
+
+            {% if it.choices %}
+              <div class="choices">
+                {% for c in it.choices %}
+                  <label class="choice">
+                    <input type="radio" name="{{ qname }}" value="{{ c }}">
+                    <span>{{ c }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            {% else %}
+              <input
+                class="text-answer"
+                name="{{ qname }}"
+                type="text"
+                placeholder="{% if qtype == 'translate' %}Type translation here…{% else %}Type here…{% endif %}"
+                autocomplete="off">
+            {% endif %}
           {% endif %}
+
         </div>
       </section>
     {% endfor %}

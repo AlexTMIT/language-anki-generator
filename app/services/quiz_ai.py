@@ -28,105 +28,162 @@ def _pjson(s:str):
     except Exception as e: raise RuntimeError(f"AI JSON parse error: {e}\nRAW: {s[:400]}...")
 
 def gen_vocab_quiz(*, lang: str, level: str, known_words: List[str], n: int, quiz_lang: str) -> list:
+    """
+    Return normalized items ready for rendering:
+      MC:       {"type":"mc","prompt":"What does 'lemma' mean?","choices":[...],"lemma":"..."}
+      TRANSLATE:{"type":"translate","prompt":"Translate this sentence into {lang}: …"}
+      CLOZE:    {"type":"cloze","prompt":"<L2 sentence with ____>","lemma":"...","morph_hint":"verb • past • 3 • sg"}
+    """
     sys = _sys(lang)
     kw = known_words[:n]
 
+    # Ask for a compact, verifiable schema we control in the UI
     user = dedent(f"""
-    CEFR {level}. Create EXACTLY {n} vocabulary questions in {lang}.
-    Write all PROMPTS in {quiz_lang}. For multiple-choice, write CHOICES in {lang}.
-    Use ONLY these lemmas across prompts/distractors (each at least once overall):
+    CEFR {level}. Create EXACTLY {n} mixed vocabulary questions.
+    Target language (L2): {lang}. Quiz UI language: {quiz_lang}.
+
+    Use ONLY these lemmas across the quiz (each appears at least once overall):
     {", ".join(kw)}
 
-    Mix ALL types:
-    - mc        : 4-choice meaning/definition (same POS; near-miss distractors)
-    - translate : short sentence translation (free text)
-    - cloze     : one blank '____' testing inflection/conjugation of the lemma
+    Types to include:
+      1) "mc": multiple choice of MEANINGS in {quiz_lang}.
+         Return: {{"type":"mc","lemma":"<L2 lemma>","meaning":"<meaning in {quiz_lang}>","distractors":["d1","d2","d3"]}}
+         Rules: meaning/distractors are plain strings in {quiz_lang}; NEVER include the lemma (or any surface form) in choices.
 
-    Difficulty scaling (hard rule):
-    - A1–A2: concrete topics; simple clauses; minimal idioms. Translate 6–10 tokens.
-    - B1: everyday/abstract mix; one subordinate clause OK; modest idioms. Translate 10–16 tokens.
-    - B2: more abstract; 1–2 subordinate clauses; natural idioms. Translate 12–18 tokens.
-    - C1–C2: nuanced/academic; complex syntax; richer idioms. Translate 16–24 tokens.
+      2) "translate": short sentence to translate FROM {quiz_lang} INTO {lang}.
+         Return: {{"type":"translate","source":"<sentence in {quiz_lang}>"}} 
+         (UI will say "Translate this sentence into {lang}: …".)
 
-    CLOZE constraints (hard rule):
-    - The blank MUST correspond to an inflected/derived form of the item’s lemma.
-    - The sentence MUST include enough disambiguating cues (collocation, role in sentence, surrounding semantics) so that ONLY that lemma reasonably fits.
-    - Avoid underspecified stems like “Det nye ____ er dyrt.” Provide unique cues, e.g. domain/role/collocate (“armbånds____ der viser tiden” → *ur*).
-    - Do NOT reveal the lemma; do NOT add hints like “(meaning …)”.
+      3) "cloze": VERB-ONLY cloze in {lang} with exactly one blank "____".
+         The correct answer is an INFLECTED verb form (NOT infinitive).
+         Return: {{"type":"cloze","lemma":"<L2 verb lemma>","sentence":"<{lang} sentence with ____>","morph":{{"tense":"...","person":"...","number":"...","mood":"..."}}}}
 
-    MC constraints:
-    - Exactly 4 choices; all plain strings (no “A:” labels).
-    - Same part of speech; 3 plausible near-misses from the same semantic field.
-    - Unambiguous single correct choice.
+    Difficulty scaling:
+      - A1–A2: simple clauses; concrete topics; short translate (6–10 tokens).
+      - B1: one subordinate clause allowed; 10–16 tokens.
+      - B2: 1–2 subordinates; 12–18 tokens.
+      - C1–C2: complex/nuanced; 16–24 tokens.
 
-    TRANSLATE constraints:
-    - Always a short sentence (not a single word); no proper-noun only items.
-    - Natural, idiomatic and level-appropriate for {level}.
+    HARD rules:
+      - EXACTLY {n} items total; mix all three types.
+      - All JSON values are plain strings/arrays/objects; no code fences; no comments.
+      - For "mc", choices are meanings in {quiz_lang} only (no lemma/surface forms).
+      - For "cloze", sentence MUST be in {lang}; answer must be an inflected form of the lemma.
+      - For "translate", source sentence is in {quiz_lang} (to be translated into {lang}).
 
-    Return ONE JSON object only (no code fences, no comments):
+    Return ONE STRICT JSON object:
     {{
-    "kind":"vocab",
-    "q_amount":{n},
-    "questions":[
-        {{"type":"mc","lemma":"...","pos":"...","prompt":"...","choices":["...","...","...","..."]}},
-        {{"type":"translate","lemma":"...","pos":"...","prompt":"..."}},
-        {{"type":"cloze","lemma":"...","pos":"...","prompt":"Sentence with ____"}}
-    ]
+      "kind":"vocab",
+      "q_amount":{n},
+      "questions":[
+        {{"type":"mc","lemma":"...","meaning":"...","distractors":["...","...","..."]}},
+        {{"type":"translate","source":"..."}},
+        {{"type":"cloze","lemma":"...","sentence":"...","morph":{{"tense":"...","person":"...","number":"...","mood":"..."}}}}
+      ]
     }}
-
-    Rules: plain strings, idiomatic sentences, correct JSON. For cloze, ensure the lemma is uniquely inferable from context; reject vague stems.
     """)
 
     raw, _ = _call(
         [{"role":"system","content":sys},{"role":"user","content":user}],
-        max_tokens=1400, temperature=0.6,
+        max_tokens=1100, temperature=0.6,
     )
     obj = _pjson(raw)
-    qs  = obj["questions"]
-    out = []
+    qs  = obj.get("questions", [])
+
+    normalized = []
     for q in qs[:n]:
-        out.append({
-            "type": q["type"],
-            "lemma": q.get("lemma",""),
-            "pos": q.get("pos",""),
-            "prompt": q["prompt"],
-            "choices": q.get("choices") if q["type"] == "mc" else None,
-        })
-    return out
+        qtype = q.get("type")
+
+        if qtype == "mc":
+            lemma = q.get("lemma", "").strip()
+            meaning = q.get("meaning", "").strip()
+            distractors = [d for d in (q.get("distractors") or []) if isinstance(d, str)]
+            # guard: 4 choices total, and no lemma leakage into choices
+            choices = [meaning] + distractors
+            choices = [c for c in choices if c][:4]
+            lemma_low = lemma.lower()
+            if not lemma or len(choices) != 4 or any(lemma_low in c.lower() for c in choices):
+                continue
+            # Build the prompt ourselves so the lemma is always visible
+            prompt = f"What does ‘{lemma}’ mean?"
+            normalized.append({
+                "type": "mc",
+                "prompt": prompt,
+                "choices": choices,
+                "lemma": lemma,
+            })
+
+        elif qtype == "translate":
+            src = (q.get("source") or "").strip()
+            if not src:
+                continue
+            prompt = f"Translate this sentence into {lang}: {src}"
+            normalized.append({
+                "type": "translate",
+                "prompt": prompt,
+            })
+
+        elif qtype == "cloze":
+            lemma = (q.get("lemma") or "").strip()
+            sent  = (q.get("sentence") or "").strip()
+            morph = q.get("morph") or {}
+            if not lemma or "____" not in sent:
+                continue
+
+            # compact morph hint for display
+            feats = []
+            for key in ("tense","person","number","mood","aspect","voice"):
+                if morph.get(key):
+                    feats.append(str(morph[key]))
+            morph_hint = "verb • " + " • ".join(feats) if feats else "verb"
+
+            normalized.append({
+                "type": "cloze",
+                "prompt": sent,         # in L2 (lang)
+                "lemma": lemma,         # shown as "Inflect/conjugate: <lemma>"
+                "morph_hint": morph_hint,
+            })
+
+    return normalized
 
 def eval_vocab_batch(*, lang: str, items: list, user_answers: list[str]) -> list:
     assert len(items) == len(user_answers)
 
     payload = []
     for it, ans in zip(items, user_answers):
-        entry = {
-            "t": it["type"][0],  # 'm', 't', 'c'
-            "p": it["prompt"],
-            "a": ans
-        }
+        entry = {"t": it["type"][0], "p": it["prompt"], "a": ans}
         if it["type"] == "mc":
-            entry["c"] = it["choices"]
+            entry["c"] = it["choices"] 
         if it["type"] == "cloze":
-            entry["l"] = it.get("lemma")
+            entry["l"] = it.get("lemma") 
         payload.append(entry)
 
-    sys = f"You are a strict {lang} language quiz grader."
+    sys = f"You are a careful but fair {lang} quiz grader. Return STRICT JSON only."
+
     user = (
-        "For each item, decide if the user's answer is correct.\n"
-        "Rules:\n"
-        "- m (multiple choice): pick the most fitting choice as canonical, mark ok true if matches user.\n"
-        "- t (translation): mark ok true if meaning matches; accept close synonyms.\n"
-        "- c (cloze): mark ok true if user answer is a valid inflected form of the lemma.\n"
-        'Return JSON array: [{"ok":true|false,"canonical":"..."}].\n'
-        "No explanations, no commentary."
+        "Grade each item in the provided list. For every item, output one object with:\n"
+        '  {"ok": true|false, "canonical": "<non-empty string>", "explanation": "<very short or empty>"}\n'
+        "Rules per type:\n"
+        "- m (multiple choice): Choose the ONE correct option FROM the provided list `c`. "
+        "Set `canonical` to that exact option string (copy verbatim). Mark `ok` true iff the user's answer exactly matches that option; "
+        "however treat minor case/diacritics/punctuation/whitespace differences as correct. Do not invent new options.\n"
+        "- t (translation): `canonical` should be a concise, natural target sentence. "
+        "Mark `ok` true if the user's answer preserves meaning; ignore minor case/diacritics/punctuation/whitespace differences. "
+        "Only mark false for real errors (wrong words, grammar that flips meaning, missing essential content). "
+        "If `ok` is true, set `explanation` to empty.\n"
+        "- c (cloze): The expected answer is a SINGLE inflected verb form of lemma `l` (NOT the base). "
+        "Set `canonical` to that inflected form. Mark `ok` true iff the user's answer matches it, "
+        "again ignoring minor case/diacritics/punctuation/whitespace differences.\n"
+        "General:\n"
+        "- Be consistent. No commentary. JSON array only. If correct, prefer an empty explanation."
     )
 
     raw, _ = _call(
         [{"role":"system","content":sys},
          {"role":"user","content":user},
          {"role":"user","content":json.dumps(payload, ensure_ascii=False)}],
-        max_tokens=600,
-        temperature=0.2
+        max_tokens=500,
+        temperature=0.2,
     )
     return _pjson(raw)
 

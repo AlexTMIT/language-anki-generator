@@ -49,3 +49,23 @@ body.quiz{
 
 .btn-row{ display:flex; gap:var(--space-3); justify-content:flex-start; }
 .btn-row > :first-child{ margin-right:auto; }
+
+.ans-head { margin: 6px 0 4px; }
+
+.ans-pair {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px 12px;
+  align-items: baseline;
+  margin: 4px 0;
+}
+
+.ans-pair .label {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.ans-pair .val {
+  color: var(--text);
+  font-weight: 600;
+}
