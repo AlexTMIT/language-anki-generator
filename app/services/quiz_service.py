@@ -1,6 +1,9 @@
 from __future__ import annotations
+import os
 import time, random, base64
 from typing import Any, Dict, List, Literal
+
+from flask import current_app, url_for
 
 QuizType = Literal["vocab", "reading", "listening", "morph", "translate"]
 DEFAULT_NUM_Q = 10
@@ -50,3 +53,29 @@ class QuizService:
     
     def grade_reading_quiz(self, *, lang: str, passage: str, items: list, user_answers: list[str]) -> list:
         return self.ai.eval_reading_batch(lang=lang, passage=passage, items=items, user_answers=user_answers)
+    
+    def generate_listening_quiz(self, *, lang: str, level: str, quiz_lang: str, n: int = DEFAULT_NUM_Q) -> dict:
+        t0 = time.perf_counter()
+        passage, items = self.ai.gen_reading_quiz(lang=lang, level=level, n=n, words=120, quiz_lang=quiz_lang)
+
+        audio_url = None
+        try:
+            raw = self.tts(passage, lang) 
+            static_root = os.path.join(current_app.root_path, "static")
+            tmp_dir = os.path.join(static_root, "tmp")
+            os.makedirs(tmp_dir, exist_ok=True)
+            out_path = os.path.join(tmp_dir, "listening.mp3")
+            with open(out_path, "wb") as f:
+                f.write(raw)
+            audio_url = url_for("static", filename="tmp/listening.mp3")
+        except Exception as e:
+            self._log(f"TTS failed: {e}")
+
+        self._log(f"listening: chars={len(passage)}, q={len(items)} in {time.perf_counter()-t0:.2f}s")
+        return {
+            "kind": "listening",
+            "lang": lang,
+            "level": level,
+            "items": items,
+            "meta": {"passage": passage, "audio": audio_url, "quiz_lang": quiz_lang, "n": n},
+        }
