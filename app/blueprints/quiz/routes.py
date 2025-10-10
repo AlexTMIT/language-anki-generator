@@ -51,8 +51,14 @@ def start():
             )
 
         elif qtype == "listening":
-            flash("Listening Comprehension is coming soon. Please choose Vocabulary or Reading.", "info")
-            return redirect(url_for("quiz.index"))
+            bundle = svc.generate_listening_quiz(lang=lang, level=level, quiz_lang=qlang, n=n)
+            bundle["lang"] = lang
+            session["quiz_bundle"] = bundle
+            return render_template("quiz/listening_run.html",
+                                   title="Quiz: Listening Comprehension",
+                                   audio=bundle["meta"]["audio"],
+                                   items=bundle["items"],
+                                   )
 
         elif qtype == "translate":
             flash("Translation quiz is coming soon. Please choose Vocabulary or Reading.", "info")
@@ -155,6 +161,23 @@ def grade():
                 rows=rows,
                 score=score_text,
             )
+        
+        elif kind == "listening":
+            passage = (bundle.get("meta") or {}).get("passage", "")
+            verdicts = quiz_ai.eval_reading_batch(lang=lang, passage=passage, items=items, user_answers=user_answers)
+            rows, correct_count = [], 0
+            for i, (it, ans, v) in enumerate(zip(items, user_answers, verdicts), start=1):
+                ok = bool(v and v.get("ok"))
+                if ok: correct_count += 1
+                rows.append({
+                    "n": i, "prompt": it.get("prompt",""), "choices": it.get("choices"),
+                    "user": ans or "—", "answer": (v.get("canonical","") if v else ""),
+                    "ok": ok, "explanation": (v.get("explanation","") if not ok else ""),
+                })
+            score_text = f"{correct_count} / {max(1,len(items))}"
+            return render_template("quiz/listening_results.html",
+                                   title="Quiz: Listening Comprehension",
+                                   rows=rows, score=score_text)
 
         else:
             flash("That quiz type is not yet implemented for grading.", "error")

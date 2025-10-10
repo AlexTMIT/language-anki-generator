@@ -80,3 +80,12 @@ body.quiz{
   margin: 0 0 var(--space-4);
 }
 .passage p { margin: 0 0 var(--space-2); }
+
+.audio-box{
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+.audio-fallback{ color: var(--text-dim); }
