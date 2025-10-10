@@ -28,16 +28,9 @@ def _pjson(s:str):
     except Exception as e: raise RuntimeError(f"AI JSON parse error: {e}\nRAW: {s[:400]}...")
 
 def gen_vocab_quiz(*, lang: str, level: str, known_words: List[str], n: int, quiz_lang: str) -> list:
-    """
-    Return normalized items ready for rendering:
-      MC:       {"type":"mc","prompt":"What does 'lemma' mean?","choices":[...],"lemma":"..."}
-      TRANSLATE:{"type":"translate","prompt":"Translate this sentence into {lang}: …"}
-      CLOZE:    {"type":"cloze","prompt":"<L2 sentence with ____>","lemma":"...","morph_hint":"verb • past • 3 • sg"}
-    """
     sys = _sys(lang)
     kw = known_words[:n]
 
-    # Ask for a compact, verifiable schema we control in the UI
     user = dedent(f"""
     CEFR {level}. Create EXACTLY {n} mixed vocabulary questions.
     Target language (L2): {lang}. Quiz UI language: {quiz_lang}.
@@ -187,18 +180,100 @@ def eval_vocab_batch(*, lang: str, items: list, user_answers: list[str]) -> list
     )
     return _pjson(raw)
 
-def gen_reading_quiz(*, lang:str, level:str, n:int, words:int=100) -> Tuple[str, list]:
+def gen_reading_quiz(*, lang: str, level: str, n: int, words: int = 180, quiz_lang: str = "English") -> tuple[str, list]:
     sys = _sys(lang)
-    user = (
-        f"CEFR level: {level}. Write a {words}-word passage in {lang}. "
-        "It may resemble a short news item, story, email, or customer complaint, or something else entirely. "
-        "Separate paragraphs with blank lines.\n"
-        f"Then create {n} comprehension questions with short answers.\n"
-        'Return JSON: {"passage":"...","items":[{"kind":"reading","prompt":"...","answer":"..."}]}'
-    )
-    raw, _ = _call([{"role":"system","content":sys},{"role":"user","content":user}], max_tokens=1000)
+    user = dedent(f"""
+    CEFR {level}. Write a ~{words}-word passage in {lang}. Separate paragraphs with blank lines.
+    Then create EXACTLY {n} comprehension questions that test understanding (mix of multiple-choice and short-answer).
+
+    Constraints:
+    - Multiple-choice (type "mc"): 4 choices, plain strings, in {quiz_lang}. Set "answer" to the exact correct choice string.
+    - Short-answer (type "short"): concise question, set "answer" to a short canonical answer in {quiz_lang}.
+    - All questions must be answerable ONLY from the passage (no outside knowledge).
+    - Keep questions clear and unambiguous.
+
+    Return ONE STRICT JSON object (no code fences, no comments):
+    {{
+      "passage":"<the passage in {lang}>",
+      "questions":[
+        {{"type":"mc","prompt":"<question in {quiz_lang}>","choices":["...","...","...","..."],"answer":"<one of the choices>"}},
+        {{"type":"short","prompt":"<question in {quiz_lang}>","answer":"<short canonical answer>"}}
+      ]
+    }}
+    """)
+
+    raw, _ = _call([{"role": "system", "content": sys},
+                    {"role": "user",   "content": user}],
+                   max_tokens=1600, temperature=0.6)
+
     obj = _pjson(raw)
-    return obj["passage"], obj["items"]
+    passage = (obj.get("passage") or "").strip()
+    qs = obj.get("questions") or []
+
+    # normalize
+    out = []
+    for q in qs[:n]:
+        qtype = q.get("type")
+        if qtype == "mc":
+            choices = q.get("choices") or []
+            ans = (q.get("answer") or "").strip()
+            if len(choices) == 4 and ans in choices:
+                out.append({
+                    "type": "mc",
+                    "prompt": q.get("prompt", "").strip(),
+                    "choices": choices,
+                    "answer": ans
+                })
+        else:
+            # short-answer
+            ans = (q.get("answer") or "").strip()
+            if ans:
+                out.append({
+                    "type": "short",
+                    "prompt": q.get("prompt", "").strip(),
+                    "answer": ans
+                })
+
+    return passage, out
+
+
+def eval_reading_batch(*, lang: str, passage: str, items: list, user_answers: list[str]) -> list:
+    packed = []
+    for it, ans in zip(items, user_answers):
+        entry = {
+            "t": "m" if it["type"] == "mc" else "s",
+            "q": it["prompt"],
+            "a": ans
+        }
+        if it["type"] == "mc":
+            entry["c"] = it["choices"]
+            entry["k"] = it["answer"]
+        else:
+            entry["k"] = it["answer"]
+        packed.append(entry)
+
+    sys = f"You are a careful but fair {lang} reading-comprehension grader. Return STRICT JSON only."
+    user = (
+        "You will receive a passage and a list of items with user answers.\n"
+        "Grade EACH item using ONLY the passage content (no outside knowledge).\n"
+        "For each item, output an object: "
+        '{"ok": true|false, "canonical": "<gold answer>", "explanation": "<very short or empty>"}\n'
+        "Rules:\n"
+        "- m (multiple choice): canonical MUST be exactly one of the provided choices 'c' and equal to 'k'. "
+        "Mark ok true iff the user's answer matches that choice, but treat minor case/diacritics/punctuation/whitespace differences as correct.\n"
+        "- s (short): canonical is the concise key answer 'k'. Mark ok true if the user's answer matches in meaning; "
+        "ignore minor case/diacritics/punctuation/whitespace differences. If correct, leave explanation empty.\n"
+        "Output a JSON array only. No comments."
+    )
+
+    raw, _ = _call(
+        [{"role":"system","content":sys},
+         {"role":"user","content":"PASSAGE:\n" + passage},
+         {"role":"user","content":user},
+         {"role":"user","content":json.dumps(packed, ensure_ascii=False)}],
+        max_tokens=900, temperature=0.0
+    )
+    return _pjson(raw)
 
 def gen_morph_quiz(*, lang:str, level:str, known_words:List[str], n:int) -> list:
     sys = _sys(lang)
