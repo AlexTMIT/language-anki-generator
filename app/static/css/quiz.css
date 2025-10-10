@@ -89,3 +89,28 @@ body.quiz{
   margin: 0 0 var(--space-4);
 }
 .audio-fallback{ color: var(--text-dim); }
+
+.passage-card {
+  margin: 16px 0 24px;
+  border: 1px solid var(--surface-3);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.passage-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--surface-3);
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.passage-title { font-size: 0.95rem; letter-spacing: .2px; }
+
+.passage-body {
+  max-height: 260px;         /* scroll when long */
+  overflow: auto;
+  padding: 14px 16px;
+  line-height: 1.6;
+}
+
+.passage-body p { margin: 0 0 10px; }

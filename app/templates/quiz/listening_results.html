@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block title %}{{ title }}{% endblock %}
-
 {% block body_class %}quiz{% endblock %}
 {% block css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
@@ -11,33 +10,36 @@
   <h1>{{ title }}</h1>
   <p class="subtitle">Score: {{ score }}</p>
 
+  {% if passage %}
+  <section class="passage-card">
+    <div class="passage-head">
+      <span class="passage-title">Transcript</span>
+    </div>
+    <div class="passage-body">
+      {% for para in passage.split('\n\n') %}
+        <p>{{ para }}</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <ol class="results">
     {% for r in rows %}
-      <li class="result {{ 'ok' if r.ok else 'bad' }}">
-        <div class="qprompt">{{ r.prompt|safe }}</div>
-
-        <div class="ans-head">
-          <span class="tag {{ 'good' if r.ok else 'bad' }}">
-            {{ 'Correct' if r.ok else 'Incorrect' }}
-          </span>
+    <li class="result {{ 'ok' if r.ok else 'bad' }}">
+      <div class="qprompt">{{ r.prompt|safe }}</div>
+      <div class="ans-row">
+        <span class="tag {{ 'good' if r.ok else 'bad' }}">{{ 'Correct' if r.ok else 'Incorrect' }}</span>
+        <div class="answer-block">
+          <div class="line"><span class="label">Your answer: </span><span class="val">{{ r.user or '—' }}</span></div>
+          {% if not r.ok %}
+          <div class="line"><span class="label">Correct: </span><span class="val">{{ r.answer }}</span></div>
+          {% endif %}
         </div>
-
-        <div class="ans-pair">
-          <div class="label">Your answer</div>
-          <div class="val">{{ r.user or '—' }}</div>
-        </div>
-
-        {% if not r.ok %}
-          <div class="ans-pair">
-            <div class="label">Correct</div>
-            <div class="val">{{ r.answer }}</div>
-          </div>
-        {% endif %}
-
-        {% if not r.ok and r.explanation %}
-          <div class="explain">{{ r.explanation }}</div>
-        {% endif %}
-      </li>
+      </div>
+      {% if r.explanation %}
+      <div class="explain">{{ r.explanation }}</div>
+      {% endif %}
+    </li>
     {% endfor %}
   </ol>
 

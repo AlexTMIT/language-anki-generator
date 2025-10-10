@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block title %}{{ title }}{% endblock %}
-
 {% block body_class %}quiz{% endblock %}
 {% block css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
@@ -23,34 +22,35 @@
   </section>
 
   <form method="post" action="{{ url_for('quiz.grade') }}" class="quiz-form">
+    <input type="hidden" name="payload" value="{{ payload_json|e }}">
     {% for it in items %}
-      {% set qname = "q" ~ loop.index %}
-      <section class="qblock">
+        {% set qname = "q" ~ loop.index %}
+        <section class="qblock">
         <div class="qnum">Q{{ loop.index }}.</div>
         <div class="qbody">
-          <div class="qprompt">{{ it.prompt|safe }}</div>
+            <div class="qprompt">{{ it.prompt|safe }}</div>
 
-          {% if it.choices %}
+            {% if it.choices %}
             <div class="choices">
-              {% for c in it.choices %}
+                {% for c in it.choices %}
                 <label class="choice">
-                  <input type="radio" name="{{ qname }}" value="{{ c }}">
-                  <span>{{ c }}</span>
+                    <input type="radio" name="{{ qname }}" value="{{ c }}">
+                    <span>{{ c }}</span>
                 </label>
-              {% endfor %}
+                {% endfor %}
             </div>
-          {% else %}
+            {% else %}
             <input class="text-answer" name="{{ qname }}" type="text"
-                   placeholder="Type your answer…" autocomplete="off">
-          {% endif %}
+                    placeholder="Type your answer…" autocomplete="off">
+            {% endif %}
         </div>
-      </section>
+        </section>
     {% endfor %}
 
     <div class="btn-row">
-      <a class="btn btn-outline" href="{{ url_for('quiz.index') }}">Back</a>
-      <button class="btn btn-primary" type="submit">Submit</button>
+        <a class="btn btn-outline" href="{{ url_for('quiz.index') }}">Back</a>
+        <button class="btn btn-primary" type="submit">Submit</button>
     </div>
-  </form>
+    </form>
 </main>
 {% endblock %}
