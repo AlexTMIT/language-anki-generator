@@ -35,39 +35,18 @@ class QuizService:
             "meta": {"source_words": sample, "quiz_lang": quiz_lang, "n": n},
         }
 
-    def generate_reading_quiz(self, *, lang: str, level: str,
-                              n: int = DEFAULT_NUM_Q) -> Dict[str, Any]:
+    def generate_reading_quiz(self, *, lang: str, level: str, quiz_lang: str,
+                          n: int = DEFAULT_NUM_Q) -> Dict[str, Any]:
         t0 = time.perf_counter()
-        passage, items = self.ai.gen_reading_quiz(lang=lang, level=level, n=n, words=100)
+        passage, items = self.ai.gen_reading_quiz(lang=lang, level=level, n=n, words=180, quiz_lang=quiz_lang)
         self._log(f"reading: chars={len(passage)}, q={len(items)} in {time.perf_counter()-t0:.2f}s")
-        return {"kind": "reading", "lang": lang, "level": level, "items": items, "meta": {"passage": passage}}
-
-    def generate_listening_quiz(self, *, lang: str, level: str,
-                                n: int = DEFAULT_NUM_Q) -> Dict[str, Any]:
-        # same as reading + optional TTS
-        bundle = self.generate_reading_quiz(lang=lang, level=level, n=n)
-        audio_b64 = None
-        if self.tts:
-            try:
-                raw = self.tts(bundle["meta"]["passage"], lang)
-                audio_b64 = "data:audio/mp3;base64," + base64.b64encode(raw).decode()
-            except Exception as e:
-                self._log(f"TTS failed: {e}")
-        bundle["kind"] = "listening"
-        bundle["meta"]["audio"] = audio_b64
-        return bundle
-
-    def generate_morph_quiz(self, *, deck: str, lang: str, level: str,
-                            n: int = DEFAULT_NUM_Q) -> Dict[str, Any]:
-        sample = self._pick_seen_words(deck, k=n*3)
-        t0 = time.perf_counter()
-        items = self.ai.gen_morph_quiz(lang=lang, level=level, known_words=sample, n=n)
-        self._log(f"morph: q={len(items)} in {time.perf_counter()-t0:.2f}s")
-        return {"kind": "morph", "lang": lang, "level": level, "items": items, "meta": {"source_words": sample}}
-
-    def generate_translate_quiz(self, *, lang: str, level: str,
-                                n: int = DEFAULT_NUM_Q, direction: str = "L1->L2") -> Dict[str, Any]:
-        t0 = time.perf_counter()
-        items = self.ai.gen_translate_quiz(lang=lang, level=level, n=n, direction=direction)
-        self._log(f"translate: q={len(items)} in {time.perf_counter()-t0:.2f}s")
-        return {"kind": "translate", "lang": lang, "level": level, "items": items, "meta": {"direction": direction}}
+        return {
+            "kind": "reading",
+            "lang": lang,
+            "level": level,
+            "items": items,
+            "meta": {"passage": passage, "quiz_lang": quiz_lang, "n": n}
+        }
+    
+    def grade_reading_quiz(self, *, lang: str, passage: str, items: list, user_answers: list[str]) -> list:
+        return self.ai.eval_reading_batch(lang=lang, passage=passage, items=items, user_answers=user_answers)

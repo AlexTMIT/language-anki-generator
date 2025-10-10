@@ -69,3 +69,14 @@ body.quiz{
   color: var(--text);
   font-weight: 600;
 }
+
+.passage-box{
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+.passage p { margin: 0 0 var(--space-2); }
