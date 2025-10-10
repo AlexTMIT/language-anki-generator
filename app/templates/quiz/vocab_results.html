@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block body_class %}quiz{% endblock %}
+{% block css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="quiz-wrap">
+  <h1>{{ title }}</h1>
+  <p class="subtitle">Score: {{ score }}</p>
+
+    <ol class="results">
+    {% for r in rows %}
+    <li class="result {{ 'ok' if r.ok else 'bad' }}">
+        <div class="qprompt">{{ r.prompt|safe }}</div>
+
+        <div class="ans-head">
+        <span class="tag {{ 'good' if r.ok else 'bad' }}">
+            {{ 'Correct' if r.ok else 'Incorrect' }}
+        </span>
+        </div>
+
+        <div class="ans-pair">
+        <div class="label">Your answer</div>
+        <div class="val">{{ r.user or '—' }}</div>
+        </div>
+
+        {% if not r.ok %}
+        <div class="ans-pair">
+            <div class="label">Correct</div>
+            <div class="val">{{ r.answer }}</div>
+        </div>
+        {% endif %}
+
+        {% if not r.ok and r.explanation %}
+        <div class="explain">{{ r.explanation }}</div>
+        {% endif %}
+    </li>
+    {% endfor %}
+    </ol>
+  <div class="btn-row">
+    <a class="btn btn-outline" href="{{ url_for('quiz.index') }}">Back</a>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Quiz Mode{% endblock %}
+
+{% block body_class %}flashcards{% endblock %}
+{% block css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Quiz Mode</h1>
+  <p class="subtitle">Take a quiz to test the application of your vocabulary.</p>
+
+  <form class="flashcard-form" method="post" action="{{ url_for('quiz.start') }}">
+    <label class="half">
+      Deck Name
+      <select name="deck" required>
+        <option value="" disabled selected>Select your Anki deck...</option>
+        {% for d in decks %}<option>{{ d }}</option>{% endfor %}
+      </select>
+    </label>
+
+    <label class="half">
+      Target Language
+      <select name="lang" required>
+        <option value="" disabled selected>Select your target language...</option>
+        <option>Danish</option>
+        <option>Belarusian</option>
+        <!-- TODO: make modular -->
+      </select>
+    </label>
+
+    <label class="half">
+      Difficulty
+      <select name="level" required>
+        <option value="" disabled selected>Select your desired difficulty...</option>
+        <option selected>A1</option><option>A2</option>
+        <option>B1</option><option>B2</option>
+        <option>C1</option><option>C2</option>
+      </select>
+    </label>
+
+    <label class="half">
+      Quiz Type
+      <select name="qtype" required>
+        <option value="vocab" selected>Vocabulary Practice</option>
+        <option value="reading">Reading Comprehension</option>
+        <option value="listening">Listening Comprehension</option>
+        <option value="translate">Translation (L1↔L2)</option>
+      </select>
+    </label>
+
+    <label class="half">
+        Quiz UI Language
+        <select name="qlang" required>
+            <option value="english" selected>English</option>
+            <option value="target">Target language</option>
+        </select>
+    </label>
+
+    <label class="half">
+        Number of Questions
+        <select name="n" required>
+            {% for k in range(1, 11) %}
+            <option value="{{ k }}" {% if k == 5 %}selected{% endif %}>{{ k }}</option>
+                {{ '{{ k }}' }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <div class="btn-row full">
+      <a class="btn btn-outline" href="{{ url_for('site.landing') }}">Back</a>
+      <button class="btn btn-primary" type="submit">Continue</button>
+    </div>
+  </form>
+</main>
+{% endblock %}

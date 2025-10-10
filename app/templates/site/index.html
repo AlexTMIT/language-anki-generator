@@ -12,7 +12,7 @@
 
     <nav class="btn-row">
       <a class="btn btn-outline" href="#">Stats</a>
-      <a class="btn btn-outline" href="#">Quiz</a>
+      <a class="btn btn-outline" href="{{ url_for('quiz.index') }}">Quiz</a>
       <a class="btn btn-outline" href="{{ url_for('story.index') }}">Story</a>
       <a class="btn btn-primary" href="{{ url_for('flashcards.make_flashcards') }}">Create</a>
     </nav>
