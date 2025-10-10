@@ -14,6 +14,7 @@
   <form method="post" action="{{ url_for('quiz.grade') }}" class="quiz-form">
     {% for it in items %}
       {% set qname = "q" ~ loop.index %}
+      {% set qtype = it.type %}
       <section class="qblock">
         <div class="qnum">Q{{ loop.index }}.</div>
         <div class="qbody">

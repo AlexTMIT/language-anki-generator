@@ -1,6 +1,7 @@
 import os, json, time
 from typing import List, Tuple
 from openai import OpenAI
+from textwrap import dedent
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -26,50 +27,108 @@ def _pjson(s:str):
     try: return json.loads(s)
     except Exception as e: raise RuntimeError(f"AI JSON parse error: {e}\nRAW: {s[:400]}...")
 
-def gen_vocab_quiz(*, lang: str, level: str, known_words: List[str], n: int) -> list:
+def gen_vocab_quiz(*, lang: str, level: str, known_words: List[str], n: int, quiz_lang: str) -> list:
     sys = _sys(lang)
+    kw = known_words[:n]
+
+    user = dedent(f"""
+    CEFR {level}. Create EXACTLY {n} vocabulary questions in {lang}.
+    Write all PROMPTS in {quiz_lang}. For multiple-choice, write CHOICES in {lang}.
+    Use ONLY these lemmas across prompts/distractors (each at least once overall):
+    {", ".join(kw)}
+
+    Mix ALL types:
+    - mc        : 4-choice meaning/definition (same POS; near-miss distractors)
+    - translate : short sentence translation (free text)
+    - cloze     : one blank '____' testing inflection/conjugation of the lemma
+
+    Difficulty scaling (hard rule):
+    - A1–A2: concrete topics; simple clauses; minimal idioms. Translate 6–10 tokens.
+    - B1: everyday/abstract mix; one subordinate clause OK; modest idioms. Translate 10–16 tokens.
+    - B2: more abstract; 1–2 subordinate clauses; natural idioms. Translate 12–18 tokens.
+    - C1–C2: nuanced/academic; complex syntax; richer idioms. Translate 16–24 tokens.
+
+    CLOZE constraints (hard rule):
+    - The blank MUST correspond to an inflected/derived form of the item’s lemma.
+    - The sentence MUST include enough disambiguating cues (collocation, role in sentence, surrounding semantics) so that ONLY that lemma reasonably fits.
+    - Avoid underspecified stems like “Det nye ____ er dyrt.” Provide unique cues, e.g. domain/role/collocate (“armbånds____ der viser tiden” → *ur*).
+    - Do NOT reveal the lemma; do NOT add hints like “(meaning …)”.
+
+    MC constraints:
+    - Exactly 4 choices; all plain strings (no “A:” labels).
+    - Same part of speech; 3 plausible near-misses from the same semantic field.
+    - Unambiguous single correct choice.
+
+    TRANSLATE constraints:
+    - Always a short sentence (not a single word); no proper-noun only items.
+    - Natural, idiomatic and level-appropriate for {level}.
+
+    Return ONE JSON object only (no code fences, no comments):
+    {{
+    "kind":"vocab",
+    "q_amount":{n},
+    "questions":[
+        {{"type":"mc","lemma":"...","pos":"...","prompt":"...","choices":["...","...","...","..."]}},
+        {{"type":"translate","lemma":"...","pos":"...","prompt":"..."}},
+        {{"type":"cloze","lemma":"...","pos":"...","prompt":"Sentence with ____"}}
+    ]
+    }}
+
+    Rules: plain strings, idiomatic sentences, correct JSON. For cloze, ensure the lemma is uniquely inferable from context; reject vague stems.
+    """)
+
+    raw, _ = _call(
+        [{"role":"system","content":sys},{"role":"user","content":user}],
+        max_tokens=1400, temperature=0.6,
+    )
+    obj = _pjson(raw)
+    qs  = obj["questions"]
+    out = []
+    for q in qs[:n]:
+        out.append({
+            "type": q["type"],
+            "lemma": q.get("lemma",""),
+            "pos": q.get("pos",""),
+            "prompt": q["prompt"],
+            "choices": q.get("choices") if q["type"] == "mc" else None,
+        })
+    return out
+
+def eval_vocab_batch(*, lang: str, items: list, user_answers: list[str]) -> list:
+    assert len(items) == len(user_answers)
+
+    payload = []
+    for it, ans in zip(items, user_answers):
+        entry = {
+            "t": it["type"][0],  # 'm', 't', 'c'
+            "p": it["prompt"],
+            "a": ans
+        }
+        if it["type"] == "mc":
+            entry["c"] = it["choices"]
+        if it["type"] == "cloze":
+            entry["l"] = it.get("lemma")
+        payload.append(entry)
+
+    sys = f"You are a strict {lang} language quiz grader."
     user = (
-        f"CEFR {level}. Create a vocabulary quiz in {lang} with EXACTLY {n} questions.\n"
-        "Use ONLY these known words across prompts/answers/distractors (each at least once overall):\n"
-        f"{', '.join(known_words)}\n\n"
-        "Question types (ALL must appear):\n"
-        "- mc        : 4-choice meaning/definition\n"
-        "- translate : short translation (free text)\n"
-        "- cloze     : sentence with one blank '____' testing inflection/conjugation\n\n"
-        "Return ONE JSON object ONLY, no code fences, no comments, no extra keys:\n"
-        "{"
-        "\"kind\":\"vocab\","
-        f"\"q_amount\":{n},"
-        "\"questions\":["
-            "{\"type\":\"mc\",\"prompt\":\"...\",\"choices\":[\"...\",\"...\",\"...\",\"...\"],\"answer\":\"...\",\"explanation\":\"...\"},"
-            "{\"type\":\"translate\",\"prompt\":\"...\",\"answer\":\"...\",\"explanation\":\"...\"},"
-            "{\"type\":\"cloze\",\"prompt\":\"Sentence with ____\",\"answer\":\"...\",\"explanation\":\"...\"}"
-        "]"
-        "}\n"
-        "Rules: choices are plain strings (no labels like 'A:'), exactly 4 choices for mc, "
-        "brief explanations, correct JSON only."
+        "For each item, decide if the user's answer is correct.\n"
+        "Rules:\n"
+        "- m (multiple choice): pick the most fitting choice as canonical, mark ok true if matches user.\n"
+        "- t (translation): mark ok true if meaning matches; accept close synonyms.\n"
+        "- c (cloze): mark ok true if user answer is a valid inflected form of the lemma.\n"
+        'Return JSON array: [{"ok":true|false,"canonical":"..."}].\n'
+        "No explanations, no commentary."
     )
 
-    raw, _ = _call([{"role":"system","content":sys},{"role":"user","content":user}], max_tokens=1400)
-    obj = json.loads(raw)
-    questions = obj.get("questions")
-
-    norm = []
-    for q in questions:
-        qtype = q.get("type")
-        prompt = q.get("prompt", "")
-        answer = q.get("answer", "")
-        explanation = (q.get("explanation") or "")
-        choices = q.get("choices") if qtype == "mc" else None
-        norm.append({
-            "type": qtype,
-            "prompt": prompt,
-            "choices": choices,
-            "answer": answer,
-            "extra": {"explanation": explanation}
-        })
-
-    return norm
+    raw, _ = _call(
+        [{"role":"system","content":sys},
+         {"role":"user","content":user},
+         {"role":"user","content":json.dumps(payload, ensure_ascii=False)}],
+        max_tokens=600,
+        temperature=0.2
+    )
+    return _pjson(raw)
 
 def gen_reading_quiz(*, lang:str, level:str, n:int, words:int=100) -> Tuple[str, list]:
     sys = _sys(lang)

@@ -20,10 +20,8 @@ def start():
     lang = request.form.get("lang", "").strip()
     level = request.form.get("level", "").strip()
     qtype = request.form.get("qtype", "").strip()
-
-    if not (lang and level and qtype):
-        flash("Please complete all fields.", "error")
-        return redirect(url_for("quiz.index"))
+    qlang = (request.form.get("qlang") or "english").strip()
+    n = int(request.form.get("n", "5"))
 
     svc = QuizService(anki=current_app.anki, quiz_ai=quiz_ai, tts_func=openai_tts)
 
@@ -31,7 +29,7 @@ def start():
         flash("Only Vocabulary Practice is implemented right now.", "error")
         return redirect(url_for("quiz.index"))
 
-    bundle = svc.generate_vocab_quiz(deck=deck, lang=lang, level=level, n=10)
+    bundle = svc.generate_vocab_quiz(deck=deck, lang=lang, level=level, quiz_lang=qlang, n=n)
     session["quiz_bundle"] = bundle
 
     return render_template(
@@ -51,41 +49,43 @@ def grade():
         return redirect(url_for("quiz.index"))
 
     items = bundle["items"]
-    user_answers = {}
-    correct = 0
-    graded_rows = []
 
-    for idx, item in enumerate(items, start=1):
-        key = f"q{idx}"
-        user_ans = (request.form.get(key) or "").strip()
-        user_answers[key] = user_ans
+    # collect answers in order
+    user_answers = []
+    for idx, _ in enumerate(items, start=1):
+        user_answers.append((request.form.get(f"q{idx}") or "").strip())
 
-        # answers can be string or list[str]
-        correct_ans = item.get("answer")
-        if isinstance(correct_ans, list):
-            is_right = user_ans.lower() in [a.strip().lower() for a in correct_ans]
-            canonical = correct_ans[0]
-        else:
-            is_right = user_ans.lower() == str(correct_ans).strip().lower()
-            canonical = correct_ans
+    # eval via model
+    try:
+        verdicts = quiz_ai.eval_vocab_batch(
+            lang=bundle["lang"],
+            items=items,
+            user_answers=user_answers
+        )
+    except Exception as e:
+        current_app.logger.exception("Vocab evaluation failed")
+        flash(f"Evaluation failed: {e}", "error")
+        return redirect(url_for("quiz.index"))
 
-        if is_right:
-            correct += 1
-
-        graded_rows.append({
-            "n": idx,
-            "prompt": item.get("prompt", ""),
-            "choices": item.get("choices"),
-            "user": user_ans,
-            "answer": canonical,
-            "ok": is_right,
-            "explanation": (item.get("extra") or {}).get("explanation")
+    # merge for display
+    rows, correct = [], 0
+    for i, (it, ans, v) in enumerate(zip(items, user_answers, verdicts), start=1):
+        ok = bool(v.get("ok"))
+        if ok: correct += 1
+        rows.append({
+            "n": i,
+            "prompt": it["prompt"],
+            "choices": it.get("choices"),
+            "user": ans,
+            "answer": v.get("canonical",""),
+            "ok": ok,
+            "explanation": v.get("explanation",""),
         })
 
     score = f"{correct} / {len(items)}"
     return render_template(
         "quiz/vocab_results.html",
         title="Quiz: Vocabulary Practice",
-        rows=graded_rows,
+        rows=rows,
         score=score
     )

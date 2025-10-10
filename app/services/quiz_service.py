@@ -22,12 +22,18 @@ class QuizService:
         return words[:min(k, len(words))]
 
     def generate_vocab_quiz(self, *, deck: str, lang: str, level: str,
-                            n: int = DEFAULT_NUM_Q) -> Dict[str, Any]:
+                         quiz_lang: str, n: int = DEFAULT_NUM_Q) -> Dict[str, Any]:
         sample = self._pick_seen_words(deck, k=n) 
         t0 = time.perf_counter()
-        items = self.ai.gen_vocab_quiz(lang=lang, level=level, known_words=sample, n=n)
+        items = self.ai.gen_vocab_quiz(lang=lang, level=level, known_words=sample, n=n, quiz_lang=quiz_lang)
         self._log(f"vocab: q={len(items)} in {time.perf_counter()-t0:.2f}s")
-        return {"kind": "vocab", "lang": lang, "level": level, "items": items, "meta": {"source_words": sample}}
+        return {
+            "kind": "vocab",
+            "lang": lang,
+            "level": level,
+            "items": items,
+            "meta": {"source_words": sample, "quiz_lang": quiz_lang, "n": n},
+        }
 
     def generate_reading_quiz(self, *, lang: str, level: str,
                               n: int = DEFAULT_NUM_Q) -> Dict[str, Any]:
