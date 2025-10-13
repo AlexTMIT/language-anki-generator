@@ -64,4 +64,6 @@ This project is early in the stages, and is really only intended for personal us
 
 I could, with the click of a button, add most languages and hope for the best, but each language is different and requires its own care and attenetion to detail. Adding languages without thought will distance the program from its primary purpose, which is to aid language learners in, well, learning.
 
-As with many AI pipelines, there are minor inconsistencies, and at times errors, that require more time and attention to be away with. 
+As is the case with many AI pipelines, there are minor inconsistencies, and at times errors, that require more time and attention to be away with. 
+
+Lastly, I write no how-to guide for this tool, as I am not yet of the belief that this tool is useful to anyone but myself. Hopefully, that day will come!
