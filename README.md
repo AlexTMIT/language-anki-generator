@@ -30,7 +30,7 @@ It is built with Flask, OpenAI, Forvo, Google Images, and a (colossal) dash of l
 
 ## Architecture Overview
 
-The app is built around a clean separation of responsibilities:
+The app is built around a separation of responsibilities:
 
 - Blueprints  
   Blueprints handle navigation, card generation, and quiz flows. Routes are intentionally thin as they only handle HTTP and delegate all logic to services.
