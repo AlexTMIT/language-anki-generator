@@ -6,6 +6,8 @@ The idea came from both a personal exigency to learn a copious amount of Belarus
 
 It is built with Flask, OpenAI, Forvo, Google Images, and a (colossal) dash of love for languages.
 
+<img width="884" height="492" alt="image" src="https://github.com/user-attachments/assets/317fc8d9-7f40-4b28-a02c-9bbe3e4861d6" />
+
 ## Functionality
 
 - **Vocabulary Practice**  
@@ -22,6 +24,9 @@ It is built with Flask, OpenAI, Forvo, Google Images, and a (colossal) dash of l
 
 - **Flashcard Creation Tool**  
   Pipeline for flashcard creation productivity, while still adhering to proper flashcard-making principles, like personally choosing images.
+  The product of this subtool is a special flashcard I spent many weeks tailoring and balancing.
+
+<img width="1257" height="866" alt="image" src="https://github.com/user-attachments/assets/abb6c279-e7c1-4fb3-b2bf-0af446f09bb6" />
 
 ## Architecture Overview
 
@@ -38,6 +43,8 @@ The app is built around a clean separation of responsibilities:
 
 - Static  
   Lightweight CSS for styling and a `tmp/` folder to store generated audio on the fly.
+
+<img width="708" height="395" alt="image" src="https://github.com/user-attachments/assets/627b6e9d-5d9e-48a7-91d2-b8327d81edcd" />
 
 **Example Flow**
 1. `/quiz` -> user selects deck, language, difficulty, quiz type.
